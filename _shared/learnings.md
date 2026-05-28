@@ -65,3 +65,8 @@
 **교훈**: 다중 repo 일관성 감사에서 claude-main·codex-main을 **추상화 레이어로 분담**시키면(claude-main=의미·규칙 레벨, codex-main=파일·파서·코드 레벨) 같은 입력 중복 호출 대신 상호보완 커버리지가 나온다 — 이번에 codex만 검출(표준 brief→mat 파서가 worker 목적을 ` ```yaml `로 표시)·claude만 검출(manual↔mat 상태 우선순위 순서/단계 불일치)이 각각 진성 크리티컬이었고 둘 다 독립 검출한 항목(gemini 기본 모델 pro-high 충돌)은 신뢰도 최상으로 분류. 병렬 brief에 "다른 worker 결과 미참조" 명시는 codex result checklist에 그대로 확인됨. 또한 claude-main이 초기 가설 2건을 self-retract했어도 orchestrator가 인용 라인을 sources에 **직접 재대조**(never-trust-upstream을 worker 출력에도 적용)해야 false-positive·false-negative 둘 다 막힌다.
 **근거**: 단일 worker였으면 크리티컬 3건 중 1건씩 누락. orchestrator 재검증에서 firstMeaningfulLine(task.go:499)·.mcp.json·routing.md:111을 직접 확인해 codex/claude 주장과 retraction을 모두 사실검증 후 취합.
 **worker**: claude-main(의미·규칙 레이어), codex-main(파일·파서 레이어), orchestrator(레이어 분담 설계·인용 직접 재대조·취합)
+
+## [2026-05-28] [brief-size-checker]
+**교훈**: codex-main(`mcp__codex__codex`, `sandbox: workspace-write`)이 Windows에서 외부 프로세스(예: `node.exe`) 실행을 차단할 수 있다(`execution error: CreateProcessAsUserW failed: 5`). 즉 codex-main은 코드를 **작성**은 해도 그 코드의 **런타임 검증**(실행·테스트)은 못 할 수 있다. 따라서 codex-main이 만든 실행물의 검증은 Orchestrator가 Bash로 **직접 실행**해 보완한다(never-trust-upstream: codex의 "구현했다"를 실행 결과로 확인). 외부 쓰기 4조건 게이트 자체는 정상 작동(파일이 target_repo에만 생성, MultiAgent repo 미접촉).
+**근거**: brief-size 체커 구현 테스트에서 codex-main이 `brief-size.mjs`+픽스처는 작성했으나 `node brief-size.mjs ...` 실행이 샌드박스 런너에서 막혀 PASS/FAIL·exit code 미확인. Orchestrator가 node v24로 직접 실행해 경계(1200/240 PASS, 1201/241 FAIL)·오류(exit2)·`wc -m`/`wc -w` 정확 일치를 확인하고 수락.
+**worker**: codex-main(구현·외부쓰기), codex-critic(adversarial 리뷰), orchestrator(직접 런타임 검증·취합)
