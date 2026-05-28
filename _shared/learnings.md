@@ -69,4 +69,5 @@
 ## [2026-05-28] [routing-summary-review]
 **교훈**: gemini 브리지를 routing.md 표기만 믿고 호출하지 말 것 — 실제 등록된 MCP 서버(`.mcp.json`)와 라이브 도구 목록·스키마를 먼저 대조한다. 정본 문서와 실제 구현이 어긋날 수 있다(이번엔 문서=`mcp__gemini-pro__*`+model 파라미터, 실제=`mcp__gemini-agy__*`(Antigravity CLI)+model 파라미터 없음). ToolSearch로 도구 스키마의 파라미터 유무까지 확인하면 호출 실패·잘못된 모델 가정을 사전 차단.
 **근거**: gemini 호출 시 routing.md의 `mcp__gemini-pro__*`가 환경에 없어 `mcp__gemini-agy__*`로 폴백. agy 도구 4종 전부 model 파라미터가 없어 승인받은 pro-low 지정 불가. `.mcp.json`·`server.mjs` 직접 확인으로 D4 전환 결정. vision/summarize/code는 `file_path`로 agy가 직접 FS 접근(구 "gemini FS 미접근" 가정 일부 폐기).
+**대체**: 본 항목은 [2026-05-15][manual-final-review]의 `mcp__gemini-pro__*` 폴백·"gemini FS 미접근" 전제를 폐기·대체한다 (D4 2026-05-28 전환). 옛 항목은 append-only 원칙상 유지하되, gemini 브리지/모델/FS 관련 운영은 본 항목과 D4를 따른다.
 **worker**: gemini (호출), orchestrator (브리지-문서 불일치 검출·D4 갱신)

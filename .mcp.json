@@ -12,7 +12,7 @@
       "type": "stdio",
       "command": "node",
       "args": [
-        "${HOME}/.claude/plugins/local/gemini-agy-mcp/server.mjs"
+        "${USERPROFILE}/.claude/plugins/local/gemini-agy-mcp/server.mjs"
       ],
       "env": {}
     }

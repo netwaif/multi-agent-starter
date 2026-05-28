@@ -54,7 +54,7 @@ echo "INV8 인터랙티브/worktree 금지 (두 파일 모두 나와야)"
 grep -lin 'worktree\|배경\|백그라운드\|background session' "$ROOT/_shared/orchestrator-rules.md" "$MANUAL"
 
 echo "INV9 gemini 브리지 = gemini-agy + model 파라미터 없음 (routing/task-folder/D4 일치해야)"
-grep -n 'mcp__gemini-agy__' "$ROOT/_shared/routing.md" "$ROOT/_templates/task-folder.md"
+grep -n 'mcp__gemini-agy__' "$ROOT/_shared/routing.md" "$ROOT/_templates/task-folder.md" "$ROOT/_shared/design-basis.md"
 grep -n 'model 파라미터 없음\|model 파라미터·' "$ROOT/_shared/routing.md" "$ROOT/_templates/task-folder.md" "$ROOT/_shared/design-basis.md"
 echo "INV9b 폐기된 per-call 모델 선택 잔존 (출력 없어야 PASS)"
 grep -n 'model: gemini-3-flash\|기본 모델 .*pro-low\|기본 모델 `gemini-3.1-pro-low`' "$ROOT/_shared/routing.md" "$ROOT/_templates/task-folder.md"
