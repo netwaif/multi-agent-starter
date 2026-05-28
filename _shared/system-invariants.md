@@ -16,8 +16,8 @@
 | INV6 | 매뉴얼 `workers_approved` 예시 스키마가 approval-policy.md와 일치 (`worker:`/date-only/`purpose:`/`approved_by:`, `HH:MM` 없음) | B1/B6 재발 |
 | INV7 | 권위 우선순위 문구가 매뉴얼 §3과 design-basis.md §2에서 동일 (CLAUDE.md > routing/approval/orchestrator-rules > 매뉴얼) | Clash 해소 규칙 붕괴 |
 | INV8 | 인터랙티브 전용 + worktree/백그라운드 세션 금지 규칙이 orchestrator-rules.md와 매뉴얼에 모두 존재 | D5 위반 |
-| INV9 | gemini 기본 모델이 routing.md·design-basis.md D4에서 `gemini-3.1-pro-low`로 일치하고, `pro-high`가 기본·폴백 기본 경로가 아님 (매뉴얼도 pro-high 비권장 유지) | C1 재발 — 정본이 known-bad pro-high를 기본 호출 (D4 위반) |
-| INV10 | 폐기 도구의 **호출형** `mcp__gemini__gemini_*`(prompt/vision 등)가 routing.md·task-folder.md·CLAUDE.md에 없음. `mcp__gemini__*` 잔여 언급은 **폐기 안내 문맥에서만** (호출 명령·예시·「또는」 선택지로 등장 금지) | C2 재발 — gemini-mcp 폐기 시 잔존 호출 참조가 즉시 실패 (D4 위반) |
+| INV9 | gemini 브리지가 routing.md·task-folder.md·design-basis.md D4에서 `mcp__gemini-agy__*`(Antigravity CLI 기반)로 일치하고, **model 파라미터 없음(모델 agy CLI 고정)**이 명시됨. per-call 모델 선택(`model: gemini-3-flash`/`기본 모델 pro-low`)이 정본에 없음 | 정본이 실재하지 않는 model 파라미터를 안내 → 혼선·실패 (D4 위반) |
+| INV10 | 폐기 브리지의 **호출형** `mcp__gemini__gemini_*` 및 `mcp__gemini-pro__gemini_*`(prompt/vision 등)가 routing.md·task-folder.md·CLAUDE.md에 없음. 두 폐기 브리지(`mcp__gemini__*`·`mcp__gemini-pro__*`) 잔여 언급은 **폐기 안내 문맥에서만** (호출 명령·예시·「또는」 선택지로 등장 금지). 살아있는 호출형은 `mcp__gemini-agy__*`만 | C2/C3 재발 — 폐기 브리지 잔존 호출 참조가 즉시 실패 (D4 위반) |
 
 ## 자가 점검 스크립트
 
@@ -53,14 +53,16 @@ grep -liE '권위 우선순위|CLAUDE.md가 가장 높|문서가 충돌' "$MANUA
 echo "INV8 인터랙티브/worktree 금지 (두 파일 모두 나와야)"
 grep -lin 'worktree\|배경\|백그라운드\|background session' "$ROOT/_shared/orchestrator-rules.md" "$MANUAL"
 
-echo "INV9 gemini 기본 모델 (routing=pro-low, D4=pro-low 기본·pro-high 제외 여야; pro-high 가 기본·1순위면 FAIL)"
-grep -n 'gemini-3.1-pro' "$ROOT/_shared/routing.md"
-grep -n '\*\*D4\*\*' "$ROOT/_shared/design-basis.md"
+echo "INV9 gemini 브리지 = gemini-agy + model 파라미터 없음 (routing/task-folder/D4 일치해야)"
+grep -n 'mcp__gemini-agy__' "$ROOT/_shared/routing.md" "$ROOT/_templates/task-folder.md"
+grep -n 'model 파라미터 없음\|model 파라미터·' "$ROOT/_shared/routing.md" "$ROOT/_templates/task-folder.md" "$ROOT/_shared/design-basis.md"
+echo "INV9b 폐기된 per-call 모델 선택 잔존 (출력 없어야 PASS)"
+grep -n 'model: gemini-3-flash\|기본 모델 .*pro-low\|기본 모델 `gemini-3.1-pro-low`' "$ROOT/_shared/routing.md" "$ROOT/_templates/task-folder.md"
 
-echo "INV10 폐기 도구 호출형 mcp__gemini__gemini_* (출력 없어야 PASS)"
-grep -rn 'mcp__gemini__gemini_' "$ROOT/_shared/routing.md" "$ROOT/_templates/task-folder.md" "$ROOT/CLAUDE.md"
-echo "INV10b mcp__gemini__* 잔여 언급 — 전부 '폐기' 안내 문맥이어야 (호출·예시·「또는」 선택지면 FAIL)"
-grep -rn 'mcp__gemini__' "$ROOT/_shared/routing.md" "$ROOT/_templates/task-folder.md" "$ROOT/CLAUDE.md"
+echo "INV10 폐기 브리지 호출형 mcp__gemini__gemini_* / mcp__gemini-pro__gemini_* (출력 없어야 PASS)"
+grep -rn 'mcp__gemini__gemini_\|mcp__gemini-pro__gemini_' "$ROOT/_shared/routing.md" "$ROOT/_templates/task-folder.md" "$ROOT/CLAUDE.md"
+echo "INV10b mcp__gemini__* / mcp__gemini-pro__* 잔여 언급 — 전부 '폐기' 안내 문맥이어야 (호출·예시·「또는」 선택지면 FAIL)"
+grep -rn 'mcp__gemini__\|mcp__gemini-pro__' "$ROOT/_shared/routing.md" "$ROOT/_templates/task-folder.md" "$ROOT/CLAUDE.md"
 ```
 
 ## 전면 재감사가 필요한 경우 (이 점검으로 부족)

@@ -90,13 +90,16 @@
 ### gemini
 - **용도**: 이미지/스크린샷/다이어그램 분석, 50페이지+ 문서 스캔, 제3자 시각의 검토
 - **결과물**: 분석 텍스트, 요약
-- **호출 명령** (예시 — MCP, 단일 브리지 `mcp__gemini-pro__*` 하나. 속도/정밀은 `model` 파라미터로):
+- **호출 명령** (MCP, 단일 브리지 `mcp__gemini-agy__*` — Antigravity 공식 CLI `agy` 기반):
   ```
-  mcp__gemini-pro__gemini_pro_prompt   # 일반 텍스트
-  mcp__gemini-pro__gemini_pro_vision   # 이미지/스크린샷
-  # model: gemini-3-flash(빠름) | gemini-3.1-pro-low(기본·정밀). pro-high 제외(D4)
+  mcp__gemini-agy__gemini_prompt      # 일반 텍스트 / 제3자 검토 (인라인 prompt만)
+  mcp__gemini-agy__gemini_vision      # 이미지/스크린샷 (file_path — agy가 직접 읽음)
+  mcp__gemini-agy__gemini_summarize   # 긴 텍스트/문서 요약 (text 또는 file_path)
+  mcp__gemini-agy__gemini_code        # 코드 리뷰/분석 (code 또는 file_path)
+  # model 파라미터 없음 — 모델은 agy CLI 로그인/설정으로 고정 (호출 시점 선택 불가)
   ```
-- **비용**: 모델별 — gemini-3-flash 낮음 / pro-low 중간 → 승인 필요
+- **FS 접근**: vision/summarize/code는 `file_path` 절대경로를 받아 agy가 직접 읽음. 단 `gemini_prompt`는 인라인 텍스트만 → 검토 자료는 Orchestrator가 prompt에 inline.
+- **비용**: 있음 → 승인 필요
 - **파일 쓰기**: ❌ MCP 응답을 Orchestrator가 받아 기록
 
 ## 모델 정책
@@ -107,7 +110,7 @@
 - **codex-main / codex-critic**: 사용자의 `~/.codex/config.toml` 기본값이 자동 적용된다 (예: `gpt-5.5` + reasoning effort `high`). MCP 호출 시 `model` 파라미터를 비워두면 그대로 사용된다.
   - 가벼운 작업은 `profile: lightweight`로 전환 가능 (예: `gpt-5.4-mini`)
   - 작업 성격상 다른 모델이 필요하면 brief.md에 명시
-- **gemini**: 단일 브리지 `mcp__gemini-pro__*` 하나만 사용 (CLI 래퍼 `mcp__gemini__*`는 폐기 — 잔존 참조 시 호출 실패). 기본 모델 `gemini-3.1-pro-low`, 빠른 응답은 같은 브리지에서 `model: gemini-3-flash`. `gemini-3.1-pro-high`는 로컬 프록시에서 `400 INVALID_ARGUMENT`가 재현되어 **기본·폴백 경로에서 제외**(사용자 명시 요청 시만). 근거: `_shared/learnings.md` [2026-05-15] · `design-basis.md` D4.
+- **gemini**: 단일 브리지 `mcp__gemini-agy__*` 하나만 사용 — Antigravity 공식 CLI `agy`를 PTY로 감싼 로컬 MCP. 구 브리지 `mcp__gemini-pro__*`(로컬 프록시)·CLI 래퍼 `mcp__gemini__*`는 모두 폐기 — 잔존 호출 참조 시 도구 미발견으로 실패. **model 파라미터 없음**: 모델은 agy CLI의 로그인/설정으로 고정되며 호출 시점에 선택 불가(과거 pro-low/flash model-param 정책 폐기). 근거: `design-basis.md` D4(2026-05-28 갱신).
 
 이 정책은 사용자별 config에 따라 달라질 수 있다 — starter clone 받은 학습자는 본인의 `~/.codex/config.toml` 기본값을 한 번 확인하고 자기 환경에 맞게 조정한다.
 

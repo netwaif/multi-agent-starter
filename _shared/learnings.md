@@ -65,3 +65,8 @@
 **교훈**: 다중 repo 일관성 감사에서 claude-main·codex-main을 **추상화 레이어로 분담**시키면(claude-main=의미·규칙 레벨, codex-main=파일·파서·코드 레벨) 같은 입력 중복 호출 대신 상호보완 커버리지가 나온다 — 이번에 codex만 검출(표준 brief→mat 파서가 worker 목적을 ` ```yaml `로 표시)·claude만 검출(manual↔mat 상태 우선순위 순서/단계 불일치)이 각각 진성 크리티컬이었고 둘 다 독립 검출한 항목(gemini 기본 모델 pro-high 충돌)은 신뢰도 최상으로 분류. 병렬 brief에 "다른 worker 결과 미참조" 명시는 codex result checklist에 그대로 확인됨. 또한 claude-main이 초기 가설 2건을 self-retract했어도 orchestrator가 인용 라인을 sources에 **직접 재대조**(never-trust-upstream을 worker 출력에도 적용)해야 false-positive·false-negative 둘 다 막힌다.
 **근거**: 단일 worker였으면 크리티컬 3건 중 1건씩 누락. orchestrator 재검증에서 firstMeaningfulLine(task.go:499)·.mcp.json·routing.md:111을 직접 확인해 codex/claude 주장과 retraction을 모두 사실검증 후 취합.
 **worker**: claude-main(의미·규칙 레이어), codex-main(파일·파서 레이어), orchestrator(레이어 분담 설계·인용 직접 재대조·취합)
+
+## [2026-05-28] [routing-summary-review]
+**교훈**: gemini 브리지를 routing.md 표기만 믿고 호출하지 말 것 — 실제 등록된 MCP 서버(`.mcp.json`)와 라이브 도구 목록·스키마를 먼저 대조한다. 정본 문서와 실제 구현이 어긋날 수 있다(이번엔 문서=`mcp__gemini-pro__*`+model 파라미터, 실제=`mcp__gemini-agy__*`(Antigravity CLI)+model 파라미터 없음). ToolSearch로 도구 스키마의 파라미터 유무까지 확인하면 호출 실패·잘못된 모델 가정을 사전 차단.
+**근거**: gemini 호출 시 routing.md의 `mcp__gemini-pro__*`가 환경에 없어 `mcp__gemini-agy__*`로 폴백. agy 도구 4종 전부 model 파라미터가 없어 승인받은 pro-low 지정 불가. `.mcp.json`·`server.mjs` 직접 확인으로 D4 전환 결정. vision/summarize/code는 `file_path`로 agy가 직접 FS 접근(구 "gemini FS 미접근" 가정 일부 폐기).
+**worker**: gemini (호출), orchestrator (브리지-문서 불일치 검출·D4 갱신)

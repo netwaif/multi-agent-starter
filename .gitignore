@@ -21,3 +21,6 @@ tasks/*
 # 프로젝트 특화 교훈 — 작성자 사적 누적물, git 추적 안 함 (폴더만 유지)
 _local/*
 !_local/.gitkeep
+
+# gemini 워커(agy CLI) 작업 마커 — 호출 시 cwd에 생성됨, 추적 안 함
+.antigravitycli

@@ -95,7 +95,7 @@ wc -w "$ROOT/tasks/$TASK/workers/$ROLE/brief.md"   # 영문 단어수 ≤ 240
   - `prompt`: brief.md 내용 그대로
   - `model`: agent frontmatter `model: opus` 자동 적용
   - 응답 텍스트를 Orchestrator가 받아 `result.md`에 기록
-- **gemini**: `mcp__gemini-pro__*` MCP 도구 호출 (모델은 `model` 파라미터로 선택 — `gemini-3-flash` 빠름 / `gemini-3.1-pro-low` 기본). Orchestrator가 응답을 `result.md`에 기록
+- **gemini**: `mcp__gemini-agy__*` MCP 도구 호출 (Antigravity CLI `agy` 기반 — `gemini_prompt`/`vision`/`summarize`/`code`. model 파라미터 없음, 모델은 agy CLI 설정으로 고정). vision/summarize/code는 `file_path`로 파일 직접 전달 가능, `gemini_prompt`는 인라인만. Orchestrator가 응답을 `result.md`에 기록
 - **codex-main / codex-critic**: `mcp__codex__codex` MCP 도구 호출
   - `prompt`: brief.md 내용 그대로
   - `cwd`:

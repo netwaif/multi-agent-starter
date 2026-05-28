@@ -7,6 +7,14 @@
         "mcp-server"
       ],
       "env": {}
+    },
+    "gemini-agy": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "${HOME}/.claude/plugins/local/gemini-agy-mcp/server.mjs"
+      ],
+      "env": {}
     }
   }
 }
