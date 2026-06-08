@@ -21,7 +21,9 @@ Claude Code를 오케스트레이터로 두고 Claude·Codex·Gemini를 워커�
 │   ├── routing.md             # worker 선택 decision tree + 호출 명령
 │   ├── approval-policy.md     # 승인 게이트 정책 (claude-main 포함)
 │   ├── orchestrator-rules.md  # 세션 시작 시 자체 점검 규칙
-│   └── learnings.md           # 시스템 일반 재사용 교훈 (추적·공개, append-only)
+│   ├── learnings.md           # 시스템 일반 재사용 교훈 (추적·공개, append-only)
+│   ├── design-basis.md        # 설계 근거 (평소 미로드 — 시스템 수정·검증 시만)
+│   └── system-invariants.md   # 시스템 수정 후 불변식 자가 점검 (평소 미로드)
 ├── _templates/
 │   ├── task.md            # status, goal, constraints, planned_workers, workers_approved
 │   ├── context.md         # 현재 스냅샷 ≤ 1500자 / 300단어
