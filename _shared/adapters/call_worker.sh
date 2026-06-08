@@ -41,8 +41,43 @@ case "$BRIEF" in *..*) die "brief 경로에 '..' 금지" 6;; esac
 [ -f "$BRIEF" ] || die "brief 파일 없음: $BRIEF" 6
 BRIEF="$(cd "$(dirname -- "$BRIEF")" && pwd)/$(basename -- "$BRIEF")"
 
-rec="$(jq -c --arg r "$ROLE" '.workers[$r] // empty' "$BACKENDS")"
-[ -n "$rec" ] || die "role 미정의: $ROLE" 2
+# 2-테이블 해석: role → roles[role].provider → providers[provider]. (스왑 = roles 한 줄 교체)
+prov="$(jq -r --arg r "$ROLE" '.roles[$r].provider // empty' "$BACKENDS")"
+[ -n "$prov" ] || die "role 미정의: $ROLE" 2
+rec="$(jq -c --arg p "$prov" '.providers[$p] // empty' "$BACKENDS")"
+[ -n "$rec" ] || die "provider 미정의: $prov (role=$ROLE)" 2
+
+# bridge provider(hermes/openclaw 등) = 미승격 브리지 → 폴백 머신 타기 전 직접 fail-closed die(exit 3).
+# (run_backend 안에도 방어선 있으나 거긴 빈-envelope 폴백경로로 exit 2가 됨 — 여기서 의미있는 3을 반환.)
+if [ "$(jq -r '.call_type // empty' <<<"$rec")" = "bridge" ]; then
+  [ "$(jq -r '.promotion_state // "inactive"' <<<"$rec")" = "active" ] \
+    || die "bridge provider '$prov' 미승격 — dispatch 불가(fail-closed; role=$ROLE)" 3
+fi
+
+# C10 family-disjoint(dispatch-time, swap-then-run fail-closed): reviewer 역할의 resolved family는
+# orchestrator_family·main producer family와 달라야(자기벤더 자기검수 금지). 위반 시 die(exit 9).
+if [ "$(jq -r --arg r "$ROLE" '.roles[$r].class // empty' "$BACKENDS")" = "reviewer" ]; then
+  rev_fam="$(jq -r '.family // empty' <<<"$rec")"
+  if [ -n "$rev_fam" ]; then
+    orch_fam="$(jq -r '.orchestrator_family // empty' "$BACKENDS")"
+    [ "$rev_fam" != "$orch_fam" ] || die "C10: reviewer '$ROLE' family '$rev_fam' == orchestrator family — 자기벤더 자기검수 금지(fail-closed)" 9
+    # 모든 main 역할의 resolved family와 대조(validate와 대칭 — first만 보면 다중-main 구성에서 우회 가능).
+    while IFS= read -r main_fam; do
+      [ -n "$main_fam" ] || continue
+      [ "$rev_fam" != "$main_fam" ] || die "C10: reviewer '$ROLE' family '$rev_fam' == main producer family — self-review(fail-closed)" 9
+    done < <(jq -r '.providers as $pv | [.roles[] | select(.class=="main") | $pv[.provider].family // empty] | unique[]' "$BACKENDS")
+  fi
+fi
+
+# staffing: role staffing.mode=auto면 provider-native best-of-n 플래그를 cli args 앞에 주입.
+# 1 dispatcher 호출 내부에서 N개 샘플 → provider가 1개로 융합·1 envelope 반환(오케스트레이터 복제 아님).
+if [ "$(jq -r --arg r "$ROLE" '.roles[$r].staffing.mode // "fixed"' "$BACKENDS")" = "auto" ]; then
+  sf_max="$(jq -r --arg r "$ROLE" '.roles[$r].staffing.max // 1' "$BACKENDS")"
+  bof="$(jq -r '.best_of_n.flag // empty' <<<"$rec")"
+  if [ -n "$bof" ] && [ "${sf_max:-1}" -gt 1 ] 2>/dev/null; then
+    rec="$(jq --arg f "$bof" --arg n "$sf_max" '.cli.args_template = ([$f, $n] + (.cli.args_template // []))' <<<"$rec")"
+  fi
+fi
 
 redact() { sed -E 's/[A-Za-z0-9_-]{32,}/[REDACTED]/g'; }
 
@@ -53,6 +88,7 @@ run_backend() {
   model="$(jq -r '.model // "?"' <<<"$spec")"
   case "$ctype" in
     native|mcp) die "native/mcp는 오케스트레이터 직접 호출(디스패처 비경유)" 3 ;;
+    bridge)     die "bridge provider 미승격 — dispatch 불가(fail-closed)" 3 ;;
     cli|api) ;;
     *) die "잘못된 call_type: $ctype" 7 ;;
   esac
@@ -70,7 +106,7 @@ run_backend() {
   if [ "$ctype" = "cli" ]; then
     local command_bin args_json a
     command_bin="$(jq -r '.cli.command' <<<"$spec")"
-    case "$command_bin" in agy|codex|claude) ;; *) die "command allowlist 위반: $command_bin" 7;; esac
+    case "$command_bin" in agy|codex|claude|grok) ;; *) die "command allowlist 위반: $command_bin" 7;; esac
     cmd+=("$command_bin")
     args_json="$(jq -r '.cli.args_template[]' <<<"$spec")"   # jq 실패 시 set -e 트리거
     while IFS= read -r a; do

@@ -1,9 +1,10 @@
 {
-  "schema_version": "1",
+  "schema_version": "2",
   "flavor": "antigravity",
+  "orchestrator_family": "google",
   "multiagent_root_env": "MULTIAGENT_ROOT",
   "_note": "오케스트레이터 = Antigravity(agy/IDE, Gemini 3.1 Pro High). gemini 워커 없음 — 멀티모달/롱독은 오케스트레이터가 직접 수행(같은 벤더 worker는 독립성 무의미).",
-  "workers": {
+  "providers": {
     "claude-main": {
       "model": "host-default",
       "call_type": "cli",
@@ -17,7 +18,8 @@
       "write_policy": "none",
       "approval_class": "worker",
       "result_capture": "envelope",
-      "timeout": 600
+      "timeout": 600,
+      "family": "anthropic"
     },
     "codex-main": {
       "model": "codex-default",
@@ -32,7 +34,8 @@
       "write_policy": "none",
       "approval_class": "worker",
       "result_capture": "envelope",
-      "timeout": 600
+      "timeout": 600,
+      "family": "openai"
     },
     "codex-critic": {
       "model": "codex-default",
@@ -47,7 +50,43 @@
       "write_policy": "none",
       "approval_class": "worker",
       "result_capture": "envelope",
-      "timeout": 600
+      "timeout": 600,
+      "family": "openai"
+    },
+    "grok": {
+      "model": "grok-build-default",
+      "call_type": "cli",
+      "brief_mode": "content",
+      "cli": {
+        "command": "grok",
+        "args_template": ["--output-format", "plain", "--permission-mode", "plan", "--no-subagents", "-p", "@brief_content"],
+        "non_interactive": { "stdin": "/dev/null", "no_tty": true, "on_permission_prompt": "fail" }
+      },
+      "cwd_policy": "isolated_tmp",
+      "write_policy": "none",
+      "approval_class": "worker",
+      "result_capture": "envelope",
+      "timeout": 600,
+      "family": "xai",
+      "best_of_n": { "flag": "--best-of-n" }
+    },
+    "hermes": {
+      "call_type": "bridge",
+      "family": "hermes",
+      "promotion_state": "inactive",
+      "_note": "Router/COO 브리지(미승격). dispatch 시 call_worker fail-closed die. promotion gate 통과 후에만 활성 바인딩."
+    },
+    "openclaw": {
+      "call_type": "bridge",
+      "family": "openclaw",
+      "promotion_state": "inactive",
+      "_note": "external staging 브리지(미승격). dispatch 시 fail-closed die. registry do-not-trust."
     }
+  },
+  "roles": {
+    "claude-main":  { "provider": "claude-main",  "class": "main",     "awo_role": "local_source_implementer", "staffing": { "mode": "fixed", "max": 1, "decided_by": "orchestrator" }, "desk": "main" },
+    "codex-main":   { "provider": "codex-main",   "class": "aux",      "awo_role": "local_source_implementer", "staffing": { "mode": "fixed", "max": 1, "decided_by": "orchestrator" }, "desk": "build" },
+    "codex-critic": { "provider": "codex-critic", "class": "reviewer", "awo_role": "source_code_reviewer",     "staffing": { "mode": "fixed", "max": 1, "decided_by": "orchestrator" }, "desk": "review" },
+    "scout":        { "provider": "grok",         "class": "scout",    "awo_role": "current_info_scout",       "staffing": { "mode": "auto",  "max": 3, "decided_by": "orchestrator" }, "desk": "RND" }
   }
 }

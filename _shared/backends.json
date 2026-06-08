@@ -1,14 +1,16 @@
 {
-  "schema_version": "1",
+  "schema_version": "2",
   "flavor": "claude",
+  "orchestrator_family": "anthropic",
   "multiagent_root_env": "MULTIAGENT_ROOT",
-  "workers": {
+  "providers": {
     "claude-main": {
       "model": "host-default",
       "call_type": "native",
       "native": { "subagent_type": "claude-main", "prompt_source": "brief", "model_alias": "opus" },
       "approval_class": "worker",
-      "result_capture": "orchestrator"
+      "result_capture": "orchestrator",
+      "family": "anthropic"
     },
     "codex-main": {
       "model": "codex-default",
@@ -21,6 +23,7 @@
       "approval_class": "worker",
       "result_capture": "tool-return",
       "timeout": 300,
+      "family": "openai",
       "fallbacks": [
         {
           "model": "codex-default", "call_type": "cli", "brief_mode": "stdin", "timeout": 300,
@@ -40,7 +43,8 @@
       "brief_mode": "content",
       "approval_class": "worker",
       "result_capture": "tool-return",
-      "timeout": 300
+      "timeout": 300,
+      "family": "openai"
     },
     "gemini": {
       "model": "gemini-3.1-pro-high",
@@ -56,6 +60,7 @@
       "approval_class": "worker",
       "result_capture": "envelope",
       "timeout": 300,
+      "family": "google",
       "fallbacks": [
         {
           "model": "gemini-3.1-pro-high", "call_type": "api", "timeout": 300,
@@ -64,6 +69,42 @@
                    "brief_pass": "arg1", "retry": { "max": 2, "backoff_s": 2 } }
         }
       ]
+    },
+    "grok": {
+      "model": "grok-build-default",
+      "call_type": "cli",
+      "brief_mode": "content",
+      "cli": {
+        "command": "grok",
+        "args_template": ["--output-format", "plain", "--permission-mode", "plan", "--no-subagents", "-p", "@brief_content"],
+        "non_interactive": { "stdin": "/dev/null", "no_tty": true, "on_permission_prompt": "fail" }
+      },
+      "cwd_policy": "isolated_tmp",
+      "write_policy": "none",
+      "approval_class": "worker",
+      "result_capture": "envelope",
+      "timeout": 300,
+      "family": "xai",
+      "best_of_n": { "flag": "--best-of-n" }
+    },
+    "hermes": {
+      "call_type": "bridge",
+      "family": "hermes",
+      "promotion_state": "inactive",
+      "_note": "Router/COO 브리지(미승격). dispatch 시 call_worker fail-closed die. promotion gate(P2) 통과 후에만 활성 바인딩 허용."
+    },
+    "openclaw": {
+      "call_type": "bridge",
+      "family": "openclaw",
+      "promotion_state": "inactive",
+      "_note": "external staging 브리지(미승격). dispatch 시 fail-closed die. registry do-not-trust."
     }
+  },
+  "roles": {
+    "claude-main":  { "provider": "claude-main",  "class": "main",     "awo_role": "local_source_implementer", "staffing": { "mode": "fixed", "max": 1, "decided_by": "orchestrator" }, "desk": "main" },
+    "codex-main":   { "provider": "codex-main",   "class": "aux",      "awo_role": "local_source_implementer", "staffing": { "mode": "fixed", "max": 1, "decided_by": "orchestrator" }, "desk": "build" },
+    "codex-critic": { "provider": "codex-critic", "class": "reviewer", "awo_role": "source_code_reviewer",     "staffing": { "mode": "fixed", "max": 1, "decided_by": "orchestrator" }, "desk": "review" },
+    "gemini":       { "provider": "gemini",       "class": "reviewer", "awo_role": "source_code_reviewer",     "staffing": { "mode": "fixed", "max": 1, "decided_by": "orchestrator" }, "desk": "multimodal" },
+    "scout":        { "provider": "grok",         "class": "scout",    "awo_role": "current_info_scout",       "staffing": { "mode": "auto",  "max": 3, "decided_by": "orchestrator" }, "desk": "RND" }
   }
 }

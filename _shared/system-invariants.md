@@ -19,6 +19,8 @@
 | INV9 | gemini 백엔드가 `_shared/backends.json`에서 `agy` CLI(call_type cli·command agy)이고 기본 모델 `gemini-3.1-pro-high`, routing.md·D4가 backends를 정본으로 참조 | 정본이 폐기 프록시/known-bad 경로 호출 (D4 위반) |
 | INV10 | 폐기 브리지 **`mcp__gemini__gemini_*`(CLI 래퍼) 및 `mcp__gemini-pro__*`(프록시)** 가 routing.md·task-folder.md·CLAUDE.md에 **활성 호출**로 없음. 잔여 언급은 **폐기 안내 문맥에서만** | C2 재발 — 폐기 브리지 잔존 호출이 즉시 실패 (D4 위반) |
 | INV11 | 재진입 프로토콜이 orchestrator-rules.md §3 **와** CLAUDE.md Task Lifecycle 포인터에 **둘 다** 존재. routing.md 토폴로지표에 4패턴(Pipeline/Fan-out·in/Expert Pool/Producer-Reviewer) 모두 존재하고, Supervisor·Hierarchical은 "배제" 줄에만 등장(채택표 행으로 등장 금지) | D6 위반 — 재진입/패턴 규정 유실 또는 배제 패턴 부활 |
+| INV12 | backends.json 2-테이블: `schema_version:"2"` + `providers`(레코드 카탈로그) + `roles`(role→provider+staffing+desk), 폐기 `workers` 키 없음, 모든 `roles[*].provider`가 `providers`에 존재. **`validate.py` C9가 자동 강제**(tests/run.sh) | D8 위반 — 디스패처 role 해석 불가 / 단일맵 회귀 |
+| INV13 | Phase1 가드(D9): 모든 provider `family`(non-empty); cli command ∈ `{agy,codex,claude,grok}`(call_worker case ≡ validate `_CLI_ALLOWLIST`, C9c 강제); bridge(hermes/openclaw) promotion_state≠active면 role 바인딩 거부·dispatch die(3); `roles[r]` staffing(mode∈{auto,fixed}·max≥1·decided_by=orchestrator·auto는 provider `best_of_n` 필수)+class∈{main,aux,reviewer,scout,tool}·`awo_role`∈AWO 9-role(CT 매핑·필수); **C10** reviewer resolved family ∉ {orchestrator_family ∪ 모든 main family}(validate+call_worker fail-closed, die9). `validate.py` C9/C9c/C10 + call_worker 자동 강제 | D9 위반 — 프로바이더 권한 누수·자기벤더 자기검수·미승격 브리지 실행 |
 
 > ※ **매뉴얼(외부 repo) 비교 항목은 유지보수자 전용(optional)**. 공개 설치본에는 매뉴얼이 없으므로 핵심 점검(INV1–4·6–11)은 시스템 파일 자체 일관성만 본다. INV5와 각 INV의 매뉴얼 측 일치 검사는 아래 스크립트의 optional 블록에서 매뉴얼이 있을 때만 실행된다.
 
