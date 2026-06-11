@@ -38,6 +38,8 @@
   - `_shared/adapters/call_worker.sh` — cli/api 디스패처(allowlist·옵션인젝션 방어·결과 envelope JSON·폴백·타임아웃). native/mcp는 오케스트레이터 직접 호출.
   - `_shared/adapters/_run.py` — 결정적 타임아웃 러너(coreutils timeout 부재 시 폴백, 프로세스그룹 TERM→KILL, 초과 시 124).
 - gemini 백엔드를 폐기된 프록시에서 **Antigravity CLI `agy`**(gemini-3.1-pro-high)로 이전. API 연결은 슬롯으로 예약.
+- **backends.json 2-테이블 스키마(`schema_version:"2"`)** — 단일 `workers` 맵을 **`providers`(백엔드 레코드 카탈로그) + `roles`(role→provider 바인딩 +staffing +desk)**로 분리. 디스패처는 `roles→providers`로 해석 → **역할별 담당 프로바이더를 설정 한 줄로 교체** 가능. 기본 바인딩은 이전과 동일(행위 0). `validate.py` C9가 2-테이블 무결성(폐기 `workers` 키 금지·provider 바인딩 해소) 자동 강제. (design-basis D8 / system-invariants INV12; tasks/free-provider-swap/)
+- **자유 프로바이더 교체 + 가드(Phase 1)** — providers 카탈로그에 grok(xai)·hermes/openclaw(bridge 스텁·미승격 fail-closed) + 모든 provider `family`. cli allowlist +grok(call_worker ≡ validate, C9c 동기화 단언). **C10 family-disjoint**(reviewer resolved family ≠ orchestrator/모든 main family, validate+dispatcher die9). staffing best-of-n(`roles[r].staffing.mode=auto` → `--best-of-n N` 주입). `roles[r].class` + `orchestrator_family` 메타. 역할 동작 불변(behavior-0). (design-basis D9 / system-invariants INV13.) **CT 역할 restructure 4-surface council 만장일치(2026-06-09)**: D1=B(현 이름 유지 + `awo_role`[AWO 9-role] 필수 메타, rename 거부) / D2=현 역할 유지 + headless `scout`(grok, auto best-of-n) 추가 + CT는 awo_role 매핑(Project-memory reviewer·Evidence custodian 제외) / D3=Hermes fail-closed 유지 / D4=Phase2 연기.
 - `tests/` — 외부·유료 모델 호출 없는 결정적 회귀 테스트(`run.sh`): 3 flavor 생성·update 보존·디스패처 폴백/타임아웃/가드.
 - `docs/ACCEPTANCE.md` — 3호스트(claude·codex·antigravity) 수용 체크리스트 + 4층 신뢰모델 + 테스트 시나리오 S1~S10 + 사인오프 표.
 - `generator/sync_claude_template.py` — 루트(Claude 정본)에서 `templates/claude` 재생성 + drift 가드.
@@ -51,6 +53,7 @@
 
 ### Fixed
 - 디스패처 타임아웃이 자식 SIGTERM 사망코드(-15)를 반환해 timeout을 error로 오분류하던 버그 — 타임아웃 시 항상 124 반환(`_run.py`, root+템플릿 3벌).
+- **validate C6b(antigravity) 정확-집합 강화**: 워커셋을 `ws <= {허용}`(subset)으로만 검사해 `codex-main`/`codex-critic` 누락을 통과시키던 잠복 구멍 → `ws == {claude-main,codex-main,codex-critic}` 정확 일치(누락·초과·gemini 추가 모두 FAIL). 2-테이블 마이그레이션 적대검증 중 발견·실증(`validate.py`).
 
 ### Note
 - 이번 2.0.0은 *배포/패키징* 변경이지 시스템 규칙 변경이 아니다. 설치되는 시스템의 **동작** 버전은 flavor별로 다른 축을 잇는다:

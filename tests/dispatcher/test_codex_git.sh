@@ -5,9 +5,11 @@
 echo "codex git 정책 (A기본 + B옵트아웃)"
 
 ROOT="$(new_root <<'JSON'
-{"schema_version":"1","flavor":"antigravity","workers":{"c":{
+{"schema_version":"2","flavor":"antigravity",
+ "providers":{"c":{
   "call_type":"cli","model":"m","approval_class":"worker","result_capture":"stdout",
-  "timeout":10,"brief_mode":"path","cli":{"command":"codex","args_template":["exec","@brief_content"]}}}}
+  "timeout":10,"brief_mode":"path","cli":{"command":"codex","args_template":["exec","@brief_content"]}}},
+ "roles":{"c":{"provider":"c"}}}
 JSON
 )"
 echo "BRIEF-TEXT" > "$ROOT/brief.txt"

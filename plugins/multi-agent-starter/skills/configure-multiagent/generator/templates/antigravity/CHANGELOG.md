@@ -2,6 +2,20 @@
 
 이 파일은 multi-agent-starter (Antigravity flavor) orchestration 시스템의 주요 변경을 기록한다.
 
+## [0.3.0] - 2026-06-09
+
+자유 프로바이더 교체 + 가드. 기존 역할 동작 불변(behavior-0).
+
+### Added
+- grok provider + hermes/openclaw 브리지 스텁(미승격 fail-closed); 모든 provider `family`; `roles[r].class` + `orchestrator_family`; **C10 family-disjoint**(reviewer resolved family ≠ orchestrator/main, validate+dispatcher die9); staffing best-of-n(`--best-of-n N` 주입); cli allowlist +grok(C9c 동기화). (design-basis D8 / system-invariants INV12. CT 역할 restructure는 council 비준 대기.)
+
+## [0.2.0] - 2026-06-09
+
+backends.json 2-테이블 스키마(provider/role 분리). 동작 변경 없음.
+
+### Changed
+- **backends.json `schema_version` 1 → 2**: `workers` 맵 → `providers` + `roles`(provider 바인딩 + `staffing` + `desk`). 디스패처는 `roles→providers` 해석. 역할별 프로바이더 교체 = `roles` 한 줄. 폐기 `workers` 맵 금지. (design-basis D7 / system-invariants INV11)
+
 ## [0.1.0] - 2026-06-01
 
 multi-agent-starter를 기반으로 Antigravity Orchestrator 버전을 생성했다.

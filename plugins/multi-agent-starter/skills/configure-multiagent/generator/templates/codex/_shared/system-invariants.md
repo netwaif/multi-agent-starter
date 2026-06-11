@@ -15,6 +15,8 @@
 | INV7 | 재진입 프로토콜이 `orchestrator-rules.md`와 `AGENTS.md` 포인터에 모두 존재 |
 | INV8 | 토폴로지 4패턴(Pipeline, Fan-out/Fan-in, Expert Pool, Producer-Reviewer)이 routing에 존재 |
 | INV9 | gemini 백엔드가 `_shared/backends.json`에서 `agy` CLI(command agy)이고 기본 모델 `gemini-3.1-pro-high`; routing.md·D4가 backends를 정본 참조, 옛 `mcp__gemini-pro__*` 활성호출 없음 |
+| INV10 | backends.json 2-테이블: `schema_version:"2"` + `providers`(레코드 카탈로그) + `roles`(role→provider+staffing+desk), 폐기 `workers` 키 없음, 모든 `roles[*].provider`가 `providers`에 존재 (`validate.py` C9 자동 강제, D7) |
+| INV11 | Phase1 가드(D8): 모든 provider `family`; cli command ∈ `{agy,codex,claude,grok}`(call_worker ≡ validate `_CLI_ALLOWLIST`, C9c 강제); bridge 미승격이면 바인딩 거부·dispatch die(3); staffing(mode∈{auto,fixed}·max≥1·decided_by=orchestrator·auto는 provider `best_of_n` 필수)+class∈{main,aux,reviewer,scout,tool}·`awo_role`∈AWO 9-role(CT 매핑·필수); C10 reviewer resolved family ∉ {orchestrator_family ∪ 모든 main family}(validate+call_worker fail-closed, die9). 위반 시 권한 누수·자기검수·미승격 브리지 실행 |
 
 ## 자가 점검 스크립트
 

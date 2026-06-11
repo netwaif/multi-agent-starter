@@ -3,6 +3,33 @@
 이 파일은 MultiAgent orchestration 시스템의 주요 변경을 기록한다.
 형식은 [Keep a Changelog](https://keepachangelog.com/), 버전은 [Semantic Versioning](https://semver.org/lang/ko/)을 따른다.
 
+## [1.2.0] - 2026-06-09
+
+자유 프로바이더 교체 + 가드(grok·bridge·family·staffing·C10). 기존 역할 동작 불변(behavior-0).
+
+### Added
+- **grok provider**(cli, family xai, `best_of_n`) + **hermes/openclaw 브리지 스텁**(call_type `bridge`, 미승격 fail-closed)을 providers 카탈로그에. 역할은 `roles[r].provider` 한 줄로 카탈로그의 어느 provider로든 교체(free provider swapping).
+- 모든 provider에 **`family`** 필드; `roles[r]`에 **`class`**(main/aux/reviewer/scout/tool) + backends top-level **`orchestrator_family`**.
+- **C10 family-disjoint 가드(하중벽)**: reviewer 역할 resolved family ≠ orchestrator/모든 main family — `validate.py` + 디스패처(`call_worker.sh`) 양쪽 fail-closed(die 9).
+- **staffing 분신**: `roles[r].staffing.mode=auto`면 provider-native best-of-n(`--best-of-n N`) 주입(1 dispatcher 호출 내부 N→1 envelope). 기본 fixed N=1.
+- cli allowlist에 grok 추가(call_worker case ≡ validate `_CLI_ALLOWLIST`, C9c 동기화 단언). bridge dispatch die(exit 3).
+
+### Verification
+- `tests/run.sh` GREEN + 적대검증 Workflow(5축): C10 dispatch 다중-main 비대칭 gap 발견·수정(전체 main family 대조). design-basis D9 / system-invariants INV13.
+
+### Note
+- CT 역할 restructure(기능slug rename·신규역할·Hermes 활성 바인딩)는 governance라 별도 4-surface council 비준 대기. role의 class를 reviewer 아닌 값으로 바꾸면 C10 면제 = 의도된 동작(class=보안존).
+
+## [1.1.0] - 2026-06-09
+
+backends.json 2-테이블 스키마(provider/role 분리). 동작 변경 없음(기본 바인딩 = 이전과 동일).
+
+### Changed
+- **backends.json `schema_version` 1 → 2**: 단일 `workers` 맵을 `providers`(백엔드 레코드 카탈로그) + `roles`(role→provider 바인딩 + `staffing` + `desk`)로 분리. 디스패처 `call_worker.sh`는 `roles[role].provider → providers[provider]`로 해석. **역할의 담당 프로바이더 교체 = `roles` 한 줄 수정**(레코드·코드 불변). 폐기 `workers` 맵 금지.
+
+### Verification
+- `tests/run.sh` 전 항목 PASS(3 flavor 생성·디스패처). validate C9 2-테이블 자동 강제 + negative probe 7종 fail-closed. design-basis D8 / system-invariants INV12 동반.
+
 ## [1.0.1] - 2026-06-01
 
 모델·추론 정책 표기 정리(문서 patch). 동작 변경 없음.

@@ -8,11 +8,13 @@ bash "$DISPATCHER" >/dev/null 2>&1
 assert_eq "인자 없음 → exit 64" 64 "$?"
 
 ROOT="$(new_root <<'JSON'
-{"schema_version":"1","flavor":"claude","workers":{
+{"schema_version":"2","flavor":"claude",
+ "providers":{
   "t":{"call_type":"cli","model":"m","approval_class":"worker","result_capture":"stdout",
        "timeout":5,"brief_mode":"path","cli":{"command":"agy","args_template":["@brief"]}},
   "bad":{"call_type":"cli","model":"m","approval_class":"worker","result_capture":"stdout",
-       "timeout":5,"brief_mode":"path","cli":{"command":"rm","args_template":["-rf","@brief"]}}}}
+       "timeout":5,"brief_mode":"path","cli":{"command":"rm","args_template":["-rf","@brief"]}}},
+ "roles":{"t":{"provider":"t"},"bad":{"provider":"bad"}}}
 JSON
 )"
 echo "brief" > "$ROOT/brief.txt"
