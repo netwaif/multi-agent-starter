@@ -51,7 +51,7 @@
     },
     "grok-critic": {
       "status": "registered_disabled",
-      "model": "grok-REPLACE-ME",
+      "model": "grok-4.5",
       "call_type": "cli",
       "brief_mode": "file-arg",
       "cli": {
