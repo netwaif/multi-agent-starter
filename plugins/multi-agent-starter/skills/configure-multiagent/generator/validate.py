@@ -188,7 +188,7 @@ _CALL_TYPES = {"native", "mcp", "cli", "api"}
 _APPROVAL = {"worker", "orchestrator"}
 _CAPTURE = {"orchestrator", "tool-return", "stdout", "envelope"}
 _BRIEF_MODES = {"path", "content", "stdin", "file-arg"}
-_CLI_ALLOWLIST = {"agy", "codex", "claude"}
+_CLI_ALLOWLIST = {"agy", "codex", "claude", "grok"}
 
 
 def _backend_record_problems(rec: dict, where: str, target: Path, *, is_fallback: bool) -> list[str]:
