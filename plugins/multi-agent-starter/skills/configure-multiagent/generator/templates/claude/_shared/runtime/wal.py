@@ -252,6 +252,20 @@ def write_terminal(dir_path: str, attempt_id: str, payload: bytes) -> str:
     return _write_once(dir_path, f"{attempt_id}{TERMINAL_SUFFIX}", bytes(payload))
 
 
+def write_marker(dir_path: str, attempt_id: str, kind: str, payload: bytes) -> str:
+    """generic write-once event marker(started/uncertainty/resolution 등 3rd 이벤트용).
+
+    intent/terminal과 동일한 durability sequence + write-once(같은 kind 재발행 시
+    DuplicateAttemptError). `kind`는 파일명 안전한 토큰이어야 한다(경로 구분자 금지).
+    payload는 caller가 직렬화한 event dict 바이트(이 모듈은 내용 해석 안 함).
+    """
+    if not isinstance(payload, (bytes, bytearray)):
+        raise TypeError("payload must be bytes (caller serializes; wal.py does file IO only)")
+    if not kind or "/" in kind or "." in kind or "\\" in kind:
+        raise WalError(f"부적합 marker kind: {kind!r}")
+    return _write_once(dir_path, f"{attempt_id}.{kind}.json", bytes(payload))
+
+
 def intent_exists(dir_path: str, attempt_id: str) -> bool:
     return os.path.exists(os.path.join(dir_path, f"{attempt_id}{INTENT_SUFFIX}"))
 
