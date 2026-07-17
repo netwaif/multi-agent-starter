@@ -140,11 +140,32 @@ run_backend() {
   [ "$rc" -eq 124 ] && status="timeout"
 
   redact <"$err" >"$errd"
-  jq -n --arg status "$status" --argjson exit "$rc" \
-        --rawfile stdout "$out" --rawfile stderr "$errd" \
-        --argjson dur "$dur" --arg backend "$ctype" --arg model "$model" \
-        '{status:$status, exit_code:$exit, backend:$backend, model:$model,
-          duration_s:$dur, stdout:$stdout, stderr_sanitized:$stderr}'
+
+  # ── v4: envelope v2 조립을 runtime에 위임 (call_worker.sh는 얇은 진입점) ──
+  # runtime/envelope.py가 W2 classify + W3 outcome을 통합해 envelope v2를 방출하고,
+  # 기존 v1 소비자를 위한 파생 legacy_status를 함께 낸다(4.0 과도기: aggregate/legacy summary).
+  local RUNTIME="$ROOT/_shared/runtime" bfam route_id toflag="" cver=""
+  if [ "$ctype" = "cli" ]; then bfam="$command_bin"; else bfam="api"; fi
+  route_id="${bfam}-${ctype}"
+  [ "$rc" -eq 124 ] && toflag="--timed-out"
+  # cli_version best-effort (backend×version classifier용; 실패해도 무시)
+  if [ "$ctype" = "cli" ]; then
+    cver="$("$command_bin" --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -1 || true)"
+  fi
+  if command -v python3 >/dev/null 2>&1 && [ -f "$RUNTIME/envelope.py" ]; then
+    python3 "$RUNTIME/envelope.py" \
+      --worker-id "$ROLE" --backend-route-id "$route_id" --call-type "$ctype" \
+      --model-requested "$model" --raw-rc "$rc" $toflag \
+      ${cver:+--cli-version "$cver"} \
+      --stdout-path "$out" --stderr-path "$errd" --duration-s "$dur"
+  else
+    # 폴백: runtime 미배치 시 기존 v1 envelope (하위호환)
+    jq -n --arg status "$status" --argjson exit "$rc" \
+          --rawfile stdout "$out" --rawfile stderr "$errd" \
+          --argjson dur "$dur" --arg backend "$ctype" --arg model "$model" \
+          '{status:$status, exit_code:$exit, backend:$backend, model:$model,
+            duration_s:$dur, stdout:$stdout, stderr_sanitized:$stderr}'
+  fi
   return "$rc"
 }
 

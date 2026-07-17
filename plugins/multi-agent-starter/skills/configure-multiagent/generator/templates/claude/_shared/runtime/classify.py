@@ -62,16 +62,33 @@ _AGY_1_1_X = {
     ],
 }
 
+# 실패 fixture가 아직 없는 backend를 위한 최소 등록. version_prefixes=["*"](버전 무관)로,
+# 실패 rule은 비어 있다. 의미: "이 backend/CLI는 안다. 실패 시그니처 corpus는 아직 없다."
+# 결과적으로 rc0 정상 종료는 실패 신호 부재로 none(성공), rc≠0/비정상은 unclassified(자동 성공
+# 인정 안 함)로 떨어진다. 실측 fixture가 나오면 version-scoped entry를 이 앞에 추가한다.
+def _generic_entry(classifier_id: str) -> dict:
+    return {"version_prefixes": ["*"], "classifier_id": classifier_id,
+            "exit_code_map": {}, "text_rules": []}
+
+
 REGISTRY: dict[str, list[dict]] = {
+    # agy는 1.1.x fixture가 있으므로 그 버전만 엄격 지원(다른 버전은 의도적으로 unsupported —
+    # "미지원 버전 generic 추측 금지" V8 §5). generic fallback을 넣지 않는다.
     "agy": [_AGY_1_1_X],
-    # 다른 backend(codex/claude/grok 등)는 실측 fixture가 확보되는 대로 같은 형태로 추가한다.
-    # (버전-스코프 이름만 허용 — "*_current" 금지.)
+    # codex/claude/grok은 실패 fixture 미확보 → generic 최소 등록(성공 판정은 가능, 실패는
+    # unclassified). 실측 fixture 확보 시 version-scoped entry를 각 리스트 앞에 추가한다.
+    "codex": [_generic_entry("classify_codex_generic")],
+    "claude": [_generic_entry("classify_claude_generic")],
+    "grok": [_generic_entry("classify_grok_generic")],
 }
 
 
-def _find_entry(backend_id: str, cli_version: str) -> dict | None:
+def _find_entry(backend_id: str, cli_version: str | None) -> dict | None:
+    cli_version = cli_version or ""
     for entry in REGISTRY.get(backend_id, []):
         for prefix in entry["version_prefixes"]:
+            if prefix == "*":                    # 버전 무관 최소 등록
+                return entry
             if cli_version == prefix or cli_version.startswith(prefix + "."):
                 return entry
     return None
@@ -175,7 +192,20 @@ def classify(
             "confidence": low_confidence_hit["confidence"],
         }
 
-    # tier 5: unclassified
+    # tier 5: 실패 신호 매치 없음.
+    #   지원 backend에서 실패 rule을 전부 적용했는데 매치가 없고 프로세스가 정상 종료(exited, rc0)
+    #   했다면 = "실패 없음을 적극 확인" → classified / failure_class=none. (성공 attempt는 반드시
+    #   failure_class==none이어야 is_ok가 될 수 있다 — V8 §5.) rc0인데 출력이 비었거나 whitespace뿐인
+    #   경우는 여기서 none으로 두더라도 result_contract(W3)가 empty로 잡으므로 is_ok가 되지 않는다.
+    if process_status == s.ProcessStatus.EXITED and raw_rc == 0:
+        return {
+            "status": s.ClassificationStatus.CLASSIFIED,
+            "failure_class": s.FailureClass.NONE,
+            "classifier_id": classifier_id,
+            "matched_rule_id": None,
+            "confidence": "high",
+        }
+    #   그 외(비정상 종료 / rc≠0인데 분류 실패) → unclassified. 자동 성공으로 인정하지 않는다.
     return {
         "status": s.ClassificationStatus.UNCLASSIFIED,
         "failure_class": s.FailureClass.UNKNOWN,

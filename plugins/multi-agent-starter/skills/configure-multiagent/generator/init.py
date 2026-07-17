@@ -80,6 +80,9 @@ def copy_template(template_dir: Path, target: Path, dry: bool) -> list[Path]:
         if src.is_dir():
             continue
         rel = src.relative_to(template_dir)
+        # 파이썬 런타임 부산물은 생성물에 넣지 않는다(templates/ 안에서 테스트를 돌리면 생김).
+        if "__pycache__" in rel.parts or src.suffix in {".pyc", ".pyo"}:
+            continue
         if is_user_data(rel):  # 방어적: 템플릿엔 .gitkeep만 있어 보통 도달 안 함
             continue
         dest = target / rel

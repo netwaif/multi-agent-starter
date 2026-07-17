@@ -34,15 +34,27 @@ def test_agy_auto_deny_signature_in_stdout_too():
     assert r["confidence"] == "high"
 
 
-def test_empty_signal_is_unclassified_unknown():
+def test_clean_exit_no_failure_signal_is_success():
+    # 지원 backend + 정상 종료(exited, rc0) + 실패 신호 없음 = 실패 없음 확인 → classified/none.
+    # (성공 attempt는 반드시 failure_class==none이어야 is_ok가 될 수 있다 — V8 §5. rc0인데 출력이
+    #  비었으면 result_contract(W3)가 empty로 잡으므로 여기서 none이어도 is_ok는 되지 않는다.)
     r = c.classify(
         backend_id="agy", cli_version="1.1.5",
         process_status=s.ProcessStatus.EXITED, raw_rc=0, signal=None,
-        stdout_text="", stderr_text="",
+        stdout_text="VERDICT: CONSISTENT", stderr_text="",
+    )
+    assert r["status"] == s.ClassificationStatus.CLASSIFIED
+    assert r["failure_class"] == s.FailureClass.NONE
+
+def test_abnormal_exit_without_signal_is_unclassified():
+    # 비정상 종료(rc≠0)인데 어떤 실패 rule에도 매치 안 되면 unclassified. 자동 성공 인정 안 함.
+    r = c.classify(
+        backend_id="agy", cli_version="1.1.5",
+        process_status=s.ProcessStatus.EXITED, raw_rc=1, signal=None,
+        stdout_text="", stderr_text="something went wrong in a way we don't recognize",
     )
     assert r["status"] == s.ClassificationStatus.UNCLASSIFIED
     assert r["failure_class"] == s.FailureClass.UNKNOWN
-    assert r["matched_rule_id"] is None
 
 
 def test_unsupported_version_is_not_generic_guess():
