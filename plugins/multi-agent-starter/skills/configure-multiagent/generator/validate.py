@@ -43,6 +43,16 @@ TOPOLOGY = ("Pipeline", "Fan-out/Fan-in", "Expert Pool", "Producer-Reviewer")
 SLOTS = ("strategist", "engineer", "computer-use", "reviewer", "multimodal")
 LOG_TAGS = "DECISION | WORKER_CALL | VERIFICATION | ERROR | APPROVAL | COMPLETE"
 
+# v4 런타임 15모듈 (C13). flavor 공통 — 어느 flavor로 생성해도 _shared/runtime/ 하위에
+# 전부 있어야 한다(W1~W12 + 통합 접착 event_store/recovery_gate).
+RUNTIME_MODULES = (
+    "schema.py", "classify.py", "outcome.py", "wal.py", "capture.py",
+    "materialize.py", "envelope.py",
+    "plan.py", "lineage.py", "reducer.py", "finality.py", "provenance.py",
+    "profile_snapshot.py",
+    "event_store.py", "recovery_gate.py",
+)
+
 # knot 자동층(v3.0.0부터 loadout 카탈로그가 주입). 미설치(마커 부재)는 정상 PASS.
 KNOT_BLOCK = SCRIPT_DIR / "knot_block.md"
 KNOT_START, KNOT_END = "<!-- knot:start -->", "<!-- knot:end -->"
@@ -180,6 +190,24 @@ def run_checks(target: Path, flavor: str) -> list[tuple[bool, str]]:
     check(k_ok, f"C10 knot 관리블록 — {k_why}")
 
     # (구 C12 요금가드 배선 검증은 v3.2.0부터 loadout doctor 소관 — 정본 이관)
+
+    # C13 v4 런타임 — _shared/runtime/ 15개 모듈 전부 생성물에 존재 (flavor 공통).
+    missing_rt = [m for m in RUNTIME_MODULES if not (target / "_shared/runtime" / m).is_file()]
+    check(not missing_rt, f"C13 v4 런타임 15모듈 존재 (없음: {missing_rt or '-'})")
+
+    # C14 envelope v2 sanity — schema.py가 SCHEMA_VERSION = "2"를 정의.
+    schema_txt = read(target, "_shared/runtime/schema.py") or ""
+    c14_ok = bool(re.search(r'SCHEMA_VERSION\s*=\s*["\']2["\']', schema_txt))
+    check(c14_ok, "C14 envelope v2 — schema.py SCHEMA_VERSION == \"2\"")
+
+    # C15 writer-authority 레이아웃(C5c) — reducer.py·provenance.py 존재 +
+    # schema.py가 WRITER_AUTHORITY를 정의.
+    c15_files_ok = (target / "_shared/runtime/reducer.py").is_file() and \
+        (target / "_shared/runtime/provenance.py").is_file()
+    c15_wa_ok = bool(re.search(r'^WRITER_AUTHORITY\s*=', schema_txt, re.M))
+    check(c15_files_ok and c15_wa_ok,
+          f"C15 writer-authority 레이아웃 (reducer/provenance 존재: {c15_files_ok}, "
+          f"schema.WRITER_AUTHORITY 정의: {c15_wa_ok})")
 
     return results
 
