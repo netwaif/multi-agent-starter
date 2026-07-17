@@ -37,6 +37,12 @@ FLAVOR = {
         "forbidden_worker": "gemini-critic",   # gemini 오케스트레이터 자기검수 금지
         "extra_files": [],
     },
+    "grok": {
+        "instruction": "GROK.md",              # grok CLI가 자동 로드
+        "main_worker": "claude-main",          # strategist 워커(교차 벤더) — routing에 있어야
+        "forbidden_worker": "grok-critic",     # grok 오케스트레이터 자기검수 금지
+        "extra_files": [],
+    },
 }
 
 TOPOLOGY = ("Pipeline", "Fan-out/Fan-in", "Expert Pool", "Producer-Reviewer")
@@ -176,6 +182,30 @@ def run_checks(target: Path, flavor: str) -> list[tuple[bool, str]]:
         check(no_gem and set_ok,
               f"C6b 워커셋 {sorted(ws)}: 핵심3 필수(={core_present}) + gemini 워커 없음(={no_gemini_worker}) "
               f"+ 추가는 grok만(={extras_ok}) + gemini 호출 잔재 없음")
+
+    # C6c grok 전용: 오케스트레이터 자체가 grok(xAI)이므로 grok-critic/grok-intel 같은 동일벤더
+    # 워커는 자기검수라 금지한다(antigravity의 C6b와 동형 — gemini 오케스트레이터가 gemini 워커를
+    # 금지하는 것과 같은 원리). 워커셋은 크로스벤더 핵심4(claude-main/codex-main/codex-critic/
+    # gemini)로 **정확히 일치**해야 한다 — 술어("크로스벤더면 OK")가 아니라 열거형으로 조여
+    # 오타 config·실험 잔재·미래의 임의 워커가 조용히 통과하는 드리프트 구멍을 막는다(C6b와 동일
+    # 근거). (schema 1 'workers' 맵 기준.)
+    if flavor == "grok":
+        try:
+            ws = set((json.loads(read(target, "_shared/backends.json") or "{}").get("workers") or {}).keys())
+        except Exception:  # noqa: BLE001
+            ws = set()
+        tf = read(target, "_templates/task-folder.md") or ""
+        _CORE4 = {"claude-main", "codex-main", "codex-critic", "gemini"}
+        _GROK_FORBIDDEN = {"grok-critic", "grok-intel"}
+        set_ok = ws == _CORE4
+        no_grok_worker = not (ws & _GROK_FORBIDDEN)
+        no_grok_residue = all(
+            ("call_worker.sh grok-critic" not in t) and ("call_worker.sh grok-intel" not in t)
+            for t in (routing, tf, instr_txt)
+        )
+        check(set_ok and no_grok_worker and no_grok_residue,
+              f"C6c 워커셋 {sorted(ws)} == 핵심4(={set_ok}) + grok 워커 없음(={no_grok_worker}) "
+              f"+ grok 워커 호출 잔재 없음(={no_grok_residue})")
 
     # C7 write_scope 값 일관 (tasks-only 가 지침/routing/brief에 존재)
     ws = all("tasks-only" in t for t in (instr_txt, routing, brief_tpl))

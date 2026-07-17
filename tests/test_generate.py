@@ -17,7 +17,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 GEN = REPO / "plugins" / "multi-agent-starter" / "skills" / "configure-multiagent" / "generator"
 FLAVORS = sorted(p.name for p in (GEN / "templates").iterdir() if p.is_dir())
-INSTRUCTION_FILE = {"claude": "CLAUDE.md", "codex": "AGENTS.md", "antigravity": "AGENTS.md"}
+INSTRUCTION_FILE = {"claude": "CLAUDE.md", "codex": "AGENTS.md", "antigravity": "AGENTS.md", "grok": "GROK.md"}
 KNOT_START, KNOT_END = "<!-- knot:start -->", "<!-- knot:end -->"
 
 
