@@ -154,9 +154,12 @@ def run_checks(target: Path, flavor: str) -> list[tuple[bool, str]]:
         c6_ok, c6_why = _gemini_policy_ok(read(target, "_shared/backends.json"))
     check(c6_ok, f"C6 gemini 정책 {('— ' + c6_why) if not c6_ok else '(OK)'}")
 
-    # C6b antigravity 전용: 워커셋이 정확히 {claude-main,codex-main,codex-critic}이고
-    # gemini 워커 호출 잔재 없음. subset 검사는 워커 누락(예: codex-critic 빠짐)을 통과시키므로
-    # 정확집합으로 조인다. (schema 1 'workers' 맵 기준 — 스키마 전환 아님)
+    # C6b antigravity 전용 (2026-07-18 완화): 정확집합 → "핵심3 필수 + gemini 워커 없음 +
+    # 추가 워커는 크로스벤더 grok(grok-critic/grok-intel)만 허용". 오케스트레이터=Gemini라 동일벤더
+    # gemini 워커는 자기검수라 금지하되, xAI grok은 크로스벤더라 독립성 원칙에 안 걸려 허용한다.
+    # ★열거형(GROK_ALLOWED)으로 조인다 — "크로스벤더면 OK"라는 술어 규칙은 미래의 임의 워커(오타
+    # config·실험 잔재·버전불일치)가 조용히 통과하는 드리프트 구멍이라 금지(GPT+Claude 웹챗 합의).
+    # 핵심3 subset은 여전히 필수라 워커 누락도 잡는다. (schema 1 'workers' 맵 기준.)
     if flavor == "antigravity":
         try:
             ws = set((json.loads(read(target, "_shared/backends.json") or "{}").get("workers") or {}).keys())
@@ -164,9 +167,15 @@ def run_checks(target: Path, flavor: str) -> list[tuple[bool, str]]:
             ws = set()
         tf = read(target, "_templates/task-folder.md") or ""
         no_gem = all("call_worker.sh gemini" not in t for t in (routing, tf, instr_txt))
-        set_ok = ws == {"claude-main", "codex-main", "codex-critic"}
+        _CORE3 = {"claude-main", "codex-main", "codex-critic"}
+        _GROK_ALLOWED = {"grok-critic", "grok-intel"}
+        core_present = _CORE3 <= ws
+        extras_ok = (ws - _CORE3) <= _GROK_ALLOWED
+        no_gemini_worker = "gemini" not in ws
+        set_ok = core_present and extras_ok and no_gemini_worker
         check(no_gem and set_ok,
-              f"C6b 워커셋 {sorted(ws)} == 정확집합 {{claude-main,codex-main,codex-critic}} + gemini 워커 호출 잔재 없음")
+              f"C6b 워커셋 {sorted(ws)}: 핵심3 필수(={core_present}) + gemini 워커 없음(={no_gemini_worker}) "
+              f"+ 추가는 grok만(={extras_ok}) + gemini 호출 잔재 없음")
 
     # C7 write_scope 값 일관 (tasks-only 가 지침/routing/brief에 존재)
     ws = all("tasks-only" in t for t in (instr_txt, routing, brief_tpl))

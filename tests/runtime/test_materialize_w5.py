@@ -70,11 +70,23 @@ def test_check_admission_accepts_clean_inline_only():
             "file_references": []}
     assert m.check_admission(good, INLINE_ONLY)["status"] == "eligible"
 
-def test_backends_json_grok_registered_disabled():
+def test_backends_json_grok_workers_active_and_readonly():
+    # 2026-07-18: grok-critic 활성화(registered_disabled 제거) + grok-intel(실시간 web+X-SNS) 신설.
     b = json.loads(_BACKENDS.read_text())
-    g = b["workers"]["grok-critic"]
-    assert g["status"] == "registered_disabled"
-    assert g["capabilities"] == INLINE_ONLY
+    # grok-critic: 활성(status 없음) + 순수 추론(tool_use=false)
+    gc = b["workers"]["grok-critic"]
+    assert "status" not in gc, "grok-critic는 활성(status 필드 없음이 규약)"
+    assert gc["capabilities"] == INLINE_ONLY
+    # grok-intel: read-only 실시간 인텔 — tool_use=true지만 web_search/x_search만 허용(쓰기툴 배제)
+    gi = b["workers"]["grok-intel"]
+    assert "status" not in gi
+    assert gi["capabilities"]["tool_use"] is True
+    assert gi["capabilities"]["tools_allowed"] == ["web_search", "x_search"]
+    assert gi["effect_class"] == "idempotent_remote"
+    args = " ".join(gi["cli"]["args_template"])
+    assert "web_search,x_search" in args               # read 툴만 명시 allow
+    for write_tool in ("bash", "edit_file", "write_file", "SHELL"):
+        assert write_tool not in args                   # 쓰기/셸 툴 원천 배제(read-only)
     assert b["workers"]["gemini"]["capabilities"] == INLINE_ONLY   # agy auto-deny 반영
 
 
