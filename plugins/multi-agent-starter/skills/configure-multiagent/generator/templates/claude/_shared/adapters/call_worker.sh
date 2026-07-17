@@ -76,7 +76,7 @@ run_backend() {
   if [ "$ctype" = "cli" ]; then
     local command_bin args_json a
     command_bin="$(jq -r '.cli.command' <<<"$spec")"
-    case "$command_bin" in agy|codex|claude) ;; *) die "command allowlist 위반: $command_bin" 7;; esac
+    case "$command_bin" in agy|codex|claude|grok) ;; *) die "command allowlist 위반: $command_bin" 7;; esac
     cmd+=("$command_bin")
     args_json="$(jq -r '.cli.args_template[]' <<<"$spec")"   # jq 실패 시 set -e 트리거
     while IFS= read -r a; do

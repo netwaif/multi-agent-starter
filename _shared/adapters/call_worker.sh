@@ -76,7 +76,7 @@ run_backend() {
   if [ "$ctype" = "cli" ]; then
     local command_bin args_json a
     command_bin="$(jq -r '.cli.command' <<<"$spec")"
-    case "$command_bin" in agy|codex|claude) ;; *) die "command allowlist 위반: $command_bin" 7;; esac
+    case "$command_bin" in agy|codex|claude|grok) ;; *) die "command allowlist 위반: $command_bin" 7;; esac
     cmd+=("$command_bin")
     args_json="$(jq -r '.cli.args_template[]' <<<"$spec")"   # jq 실패 시 set -e 트리거
     while IFS= read -r a; do
@@ -140,11 +140,28 @@ run_backend() {
   [ "$rc" -eq 124 ] && status="timeout"
 
   redact <"$err" >"$errd"
-  jq -n --arg status "$status" --argjson exit "$rc" \
-        --rawfile stdout "$out" --rawfile stderr "$errd" \
-        --argjson dur "$dur" --arg backend "$ctype" --arg model "$model" \
-        '{status:$status, exit_code:$exit, backend:$backend, model:$model,
-          duration_s:$dur, stdout:$stdout, stderr_sanitized:$stderr}'
+
+  # ── v4: envelope v2 조립을 runtime에 위임 (call_worker.sh는 얇은 진입점) ──
+  local RUNTIME="$ROOT/_shared/runtime" bfam route_id toflag="" cver=""
+  if [ "$ctype" = "cli" ]; then bfam="$command_bin"; else bfam="api"; fi
+  route_id="${bfam}-${ctype}"
+  [ "$rc" -eq 124 ] && toflag="--timed-out"
+  if [ "$ctype" = "cli" ]; then
+    cver="$("$command_bin" --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -1 || true)"
+  fi
+  if command -v python3 >/dev/null 2>&1 && [ -f "$RUNTIME/envelope.py" ]; then
+    python3 "$RUNTIME/envelope.py" \
+      --worker-id "$ROLE" --backend-route-id "$route_id" --call-type "$ctype" \
+      --model-requested "$model" --raw-rc "$rc" $toflag \
+      ${cver:+--cli-version "$cver"} \
+      --stdout-path "$out" --stderr-path "$errd" --duration-s "$dur"
+  else
+    jq -n --arg status "$status" --argjson exit "$rc" \
+          --rawfile stdout "$out" --rawfile stderr "$errd" \
+          --argjson dur "$dur" --arg backend "$ctype" --arg model "$model" \
+          '{status:$status, exit_code:$exit, backend:$backend, model:$model,
+            duration_s:$dur, stdout:$stdout, stderr_sanitized:$stderr}'
+  fi
   return "$rc"
 }
 

@@ -53,6 +53,7 @@
       },
       "cwd_policy": "isolated_tmp",
       "write_policy": "none",
+      "capabilities": { "input_mode": "inline_only", "file_read": false, "tool_use": false },
       "approval_class": "worker",
       "result_capture": "envelope",
       "timeout": 300,
@@ -64,6 +65,24 @@
                    "brief_pass": "arg1", "retry": { "max": 2, "backoff_s": 2 } }
         }
       ]
+    },
+    "grok-critic": {
+      "status": "registered_disabled",
+      "model": "grok-REPLACE-ME",
+      "call_type": "cli",
+      "brief_mode": "file-arg",
+      "cli": {
+        "command": "grok",
+        "args_template": ["--prompt-file", "@brief_file", "--max-turns", "1", "--output-format", "plain"],
+        "non_interactive": { "stdin": "/dev/null", "no_tty": true, "on_permission_prompt": "fail" }
+      },
+      "cwd_policy": "isolated_tmp",
+      "write_policy": "none",
+      "capabilities": { "input_mode": "inline_only", "file_read": false, "tool_use": false },
+      "result_contract": { "mode": "text", "output_required": true, "min_non_whitespace_chars": 1 },
+      "approval_class": "worker",
+      "result_capture": "envelope",
+      "timeout": 300
     }
   }
 }
