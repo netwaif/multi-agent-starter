@@ -67,13 +67,12 @@
       ]
     },
     "grok-critic": {
-      "status": "registered_disabled",
       "model": "grok-4.5",
       "call_type": "cli",
       "brief_mode": "file-arg",
       "cli": {
         "command": "grok",
-        "args_template": ["--prompt-file", "@brief_file", "--max-turns", "1", "--output-format", "plain"],
+        "args_template": ["--prompt-file", "@brief", "--max-turns", "1", "--output-format", "plain", "-m", "grok-4.5"],
         "non_interactive": { "stdin": "/dev/null", "no_tty": true, "on_permission_prompt": "fail" }
       },
       "cwd_policy": "isolated_tmp",
