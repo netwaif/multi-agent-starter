@@ -20,6 +20,7 @@ ROLE="${1:-}"; BRIEF="${2:-}"
 SCRIPT_DIR="$(cd "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="${MULTIAGENT_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 BACKENDS="$ROOT/_shared/backends.json"
+RUNTIME="$ROOT/_shared/runtime"   # v4 런타임(있으면 envelope v2 + 4.1 recovery gate)
 
 command -v jq >/dev/null 2>&1 || die "jq 필요(JSON 파싱)" 5
 [ -f "$BACKENDS" ] || die "backends.json 없음: $BACKENDS" 5
@@ -76,7 +77,7 @@ run_backend() {
   if [ "$ctype" = "cli" ]; then
     local command_bin args_json a
     command_bin="$(jq -r '.cli.command' <<<"$spec")"
-    case "$command_bin" in agy|codex|claude) ;; *) die "command allowlist 위반: $command_bin" 7;; esac
+    case "$command_bin" in agy|codex|claude|grok) ;; *) die "command allowlist 위반: $command_bin" 7;; esac
     cmd+=("$command_bin")
     args_json="$(jq -r '.cli.args_template[]' <<<"$spec")"   # jq 실패 시 set -e 트리거
     while IFS= read -r a; do
@@ -140,30 +141,81 @@ run_backend() {
   [ "$rc" -eq 124 ] && status="timeout"
 
   redact <"$err" >"$errd"
-  jq -n --arg status "$status" --argjson exit "$rc" \
-        --rawfile stdout "$out" --rawfile stderr "$errd" \
-        --argjson dur "$dur" --arg backend "$ctype" --arg model "$model" \
-        '{status:$status, exit_code:$exit, backend:$backend, model:$model,
-          duration_s:$dur, stdout:$stdout, stderr_sanitized:$stderr}'
+
+  # ── v4: envelope v2 조립을 runtime에 위임 (call_worker.sh는 얇은 진입점) ──
+  local RUNTIME="$ROOT/_shared/runtime" bfam route_id toflag="" cver=""
+  if [ "$ctype" = "cli" ]; then bfam="$command_bin"; else bfam="api"; fi
+  route_id="${bfam}-${ctype}"
+  [ "$rc" -eq 124 ] && toflag="--timed-out"
+  if [ "$ctype" = "cli" ]; then
+    cver="$("$command_bin" --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -1 || true)"
+  fi
+  if command -v python3 >/dev/null 2>&1 && [ -f "$RUNTIME/envelope.py" ]; then
+    python3 "$RUNTIME/envelope.py" \
+      --worker-id "$ROLE" --backend-route-id "$route_id" --call-type "$ctype" \
+      --model-requested "$model" --raw-rc "$rc" $toflag \
+      ${cver:+--cli-version "$cver"} \
+      --stdout-path "$out" --stderr-path "$errd" --duration-s "$dur"
+  else
+    jq -n --arg status "$status" --argjson exit "$rc" \
+          --rawfile stdout "$out" --rawfile stderr "$errd" \
+          --argjson dur "$dur" --arg backend "$ctype" --arg model "$model" \
+          '{status:$status, exit_code:$exit, backend:$backend, model:$model,
+            duration_s:$dur, stdout:$stdout, stderr_sanitized:$stderr}'
+  fi
   return "$rc"
+}
+
+# ── v4 4.1: recovery gate (opt-in — MULTIAGENT_OP_ID 있을 때만) ──────────────
+# dispatch 전 A6 gate: events 로드→reduce→admit. 거부면 spawn 없이 PreflightRejection 방출.
+# 통과면 AttemptIntent durable 후, 실행 결과를 commit(final terminal 또는 timeout→UNRESOLVED).
+ATTEMPT_ID=""; EVENTS_DIR=""
+if [ -n "${MULTIAGENT_OP_ID:-}" ] && command -v python3 >/dev/null 2>&1 && [ -f "$RUNTIME/recovery_gate.py" ]; then
+  EVENTS_DIR="${MULTIAGENT_EVENTS_DIR:-$ROOT/.awo-events/$MULTIAGENT_OP_ID}"
+  mkdir -p "$EVENTS_DIR"
+  gate_admit=""; garc=0
+  gate_admit="$(PYTHONPATH="$RUNTIME" python3 "$RUNTIME/recovery_gate.py" admit \
+      --events-dir "$EVENTS_DIR" --logical-operation-id "$MULTIAGENT_OP_ID" \
+      --retry-cap "${MULTIAGENT_RETRY_CAP:-3}")" || garc=$?
+  if [ "$garc" -ne 0 ]; then
+    # gate 거부: spawn 금지, refusal(PreflightRejection 성격) 그대로 방출.
+    echo "$gate_admit"
+    exit 4
+  fi
+  ATTEMPT_ID="$(jq -r '.attempt_id' <<<"$gate_admit")"
+fi
+
+# dispatch 종료 시 commit(gate active인 경우) + envelope 방출 후 exit.
+finish_dispatch() {  # <envelope-json> <fallback_used-bool> <final-rc> <exit-code>
+  local env="$1" fbused="$2" frc="$3" ec="$4" gate_commit=""
+  if [ -n "$ATTEMPT_ID" ]; then
+    gate_commit="$(PYTHONPATH="$RUNTIME" python3 "$RUNTIME/recovery_gate.py" commit \
+        --events-dir "$EVENTS_DIR" --logical-operation-id "$MULTIAGENT_OP_ID" \
+        --attempt-id "$ATTEMPT_ID" --raw-rc "$frc" 2>/dev/null || true)"
+  fi
+  if [ -n "$gate_commit" ]; then
+    jq -n --argjson e "$env" --argjson fb "$fbused" --argjson g "$gate_commit" \
+      '$e + {fallback_used:$fb, recovery_gate:$g}'
+  else
+    jq -n --argjson e "$env" --argjson fb "$fbused" '$e + {fallback_used:$fb}'
+  fi
+  exit "$ec"
 }
 
 # primary → 실패 시 fallbacks 순차 (set -e 우회: || prc=$?)
 prc=0; env_primary="$(run_backend "$rec")" || prc=$?
 if [ "$prc" -eq 0 ]; then
-  jq -n --argjson e "$env_primary" '$e + {fallback_used:false}'
-  exit 0
+  finish_dispatch "$env_primary" false "$prc" 0
 fi
 nf="$(jq '.fallbacks | length' <<<"$rec")"
-env_fb=""; i=0
+env_fb=""; i=0; final_rc="$prc"   # 폴백 없으면 primary rc가 최종(timeout 124 등 보존)
 while [ "$i" -lt "${nf:-0}" ]; do
   fb="$(jq -c --argjson i "$i" '.fallbacks[$i]' <<<"$rec")"
   frc=0; env_fb="$(run_backend "$fb")" || frc=$?
+  final_rc="$frc"
   if [ "$frc" -eq 0 ]; then
-    jq -n --argjson e "$env_fb" '$e + {fallback_used:true}'
-    exit 0
+    finish_dispatch "$env_fb" true "$frc" 0
   fi
   i=$((i+1))
 done
-jq -n --argjson e "${env_fb:-$env_primary}" '$e + {fallback_used:true}'
-exit 1
+finish_dispatch "${env_fb:-$env_primary}" true "$final_rc" 1

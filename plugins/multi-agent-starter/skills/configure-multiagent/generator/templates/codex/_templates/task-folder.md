@@ -86,7 +86,7 @@ wc -w "$ROOT/tasks/$TASK/workers/$ROLE/brief.md"
 
 - **codex-main**: 현재 Codex 환경의 sub-agent/worker 기능 사용. 외부 `codex` CLI나 별도 bridge 실행이 필요하면 먼저 사용자 승인.
 - **claude-critic**: 승인된 Claude CLI/MCP/agent bridge만 사용. 실제 호출 전 도구·모델·비용 가능성을 밝히고 승인.
-- **gemini**: `_shared/backends.json` 정본(백엔드 Antigravity `agy` CLI, 기본 `gemini-3.1-pro-high`). `bash _shared/adapters/call_worker.sh gemini <brief-file>` → JSON envelope. 이미지/긴 문서/제3자 검토가 명확할 때만, 승인 후.
+- **gemini**: `_shared/backends.json`의 `gemini`(백엔드 = Antigravity `agy` CLI, 기본 `gemini-3.1-pro-high`). 디스패처 `bash _shared/adapters/call_worker.sh gemini <brief-file>` → **envelope v2**(JSON). Orchestrator는 envelope의 `output.stdout_path`가 가리키는 파일 내용을 `result.md`에 기록한다(원문이 짧으면 `output.stdout_preview_sanitized`도 가능). **성공 여부는 최상위 `ok`(true/false) 또는 파생 `legacy_status`(`ok`/`error`/`empty`/`timeout`)로 판정** — 옛 `.stdout` 키는 없어졌다(v4 breaking). 이미지/긴 문서/제3자 검토가 명확할 때만, 승인 후.
 
 `codex-main` 외부 repo 쓰기 조건:
 - `target_repo` 명시

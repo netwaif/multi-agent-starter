@@ -21,12 +21,12 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = SCRIPT_DIR / "templates"
-FLAVORS = ("claude", "codex", "antigravity")
+FLAVORS = ("claude", "codex", "antigravity", "grok")
 # 사용자 데이터 디렉토리 — 내용물은 절대 덮어쓰거나 지우지 않는다(.gitkeep만 보장).
 PRESERVE_DIRS = ("tasks", "_local")
 
 # flavor별 지침파일(에이전트가 자동 로드) — validate.py FLAVOR['instruction']과 일치해야.
-INSTRUCTION_FILE = {"claude": "CLAUDE.md", "codex": "AGENTS.md", "antigravity": "AGENTS.md"}
+INSTRUCTION_FILE = {"claude": "CLAUDE.md", "codex": "AGENTS.md", "antigravity": "AGENTS.md", "grok": "GROK.md"}
 # knot·요금가드 설치는 v3.0.0부터 loadout 카탈로그 담당(github.com/netwaif/loadout).
 # knot 자산(knot_block.md·knot-vault/)과 validate C10(사후 검증)은 존치. knot 능동 스킬은 v3.1.0부터 netwaif/knot 자체 플러그인이 배포.
 # 요금가드는 v3.2.0부터 자산(구 guard/)·사후검증(구 C12)까지 전부 loadout guard 품목 소관 — 이 저장소에 가드 파일 없음.
@@ -80,6 +80,9 @@ def copy_template(template_dir: Path, target: Path, dry: bool) -> list[Path]:
         if src.is_dir():
             continue
         rel = src.relative_to(template_dir)
+        # 파이썬 런타임 부산물은 생성물에 넣지 않는다(templates/ 안에서 테스트를 돌리면 생김).
+        if "__pycache__" in rel.parts or src.suffix in {".pyc", ".pyo"}:
+            continue
         if is_user_data(rel):  # 방어적: 템플릿엔 .gitkeep만 있어 보통 도달 안 함
             continue
         dest = target / rel

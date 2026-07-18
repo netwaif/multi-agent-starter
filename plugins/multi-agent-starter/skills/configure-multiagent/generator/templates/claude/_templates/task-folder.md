@@ -95,7 +95,7 @@ wc -w "$ROOT/tasks/$TASK/workers/$ROLE/brief.md"   # 영문 단어수 ≤ 240
   - `prompt`: brief.md 내용 그대로
   - `model`: agent frontmatter `model: opus` 자동 적용
   - 응답 텍스트를 Orchestrator가 받아 `result.md`에 기록
-- **gemini**: `_shared/backends.json`의 `gemini`(백엔드 = Antigravity `agy` CLI, 기본 `gemini-3.1-pro-high`). 디스패처 `bash _shared/adapters/call_worker.sh gemini <brief-file>` → JSON envelope. Orchestrator가 envelope의 stdout을 `result.md`에 기록. (옛 `mcp__gemini-pro__*` 브리지 폐기)
+- **gemini**: `_shared/backends.json`의 `gemini`(백엔드 = Antigravity `agy` CLI, 기본 `gemini-3.1-pro-high`). 디스패처 `bash _shared/adapters/call_worker.sh gemini <brief-file>` → **envelope v2**(JSON). Orchestrator는 envelope의 `output.stdout_path`가 가리키는 파일 내용을 `result.md`에 기록한다(원문이 짧으면 `output.stdout_preview_sanitized`도 가능). **성공 여부는 최상위 `ok`(true/false) 또는 파생 `legacy_status`(`ok`/`error`/`empty`/`timeout`)로 판정** — 옛 `.stdout` 키는 없어졌다(v4 breaking). (옛 `mcp__gemini-pro__*` 브리지 폐기)
 - **codex-main / codex-critic**: `mcp__codex__codex` MCP 도구 호출
   - `prompt`: brief.md 내용 그대로
   - `cwd`:

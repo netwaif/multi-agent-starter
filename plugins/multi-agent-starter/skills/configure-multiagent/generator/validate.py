@@ -37,11 +37,27 @@ FLAVOR = {
         "forbidden_worker": "gemini-critic",   # gemini 오케스트레이터 자기검수 금지
         "extra_files": [],
     },
+    "grok": {
+        "instruction": "GROK.md",              # grok CLI가 자동 로드
+        "main_worker": "claude-main",          # strategist 워커(교차 벤더) — routing에 있어야
+        "forbidden_worker": "grok-critic",     # grok 오케스트레이터 자기검수 금지
+        "extra_files": [],
+    },
 }
 
 TOPOLOGY = ("Pipeline", "Fan-out/Fan-in", "Expert Pool", "Producer-Reviewer")
 SLOTS = ("strategist", "engineer", "computer-use", "reviewer", "multimodal")
 LOG_TAGS = "DECISION | WORKER_CALL | VERIFICATION | ERROR | APPROVAL | COMPLETE"
+
+# v4 런타임 15모듈 (C13). flavor 공통 — 어느 flavor로 생성해도 _shared/runtime/ 하위에
+# 전부 있어야 한다(W1~W12 + 통합 접착 event_store/recovery_gate).
+RUNTIME_MODULES = (
+    "schema.py", "classify.py", "outcome.py", "wal.py", "capture.py",
+    "materialize.py", "envelope.py",
+    "plan.py", "lineage.py", "reducer.py", "finality.py", "provenance.py",
+    "profile_snapshot.py",
+    "event_store.py", "recovery_gate.py",
+)
 
 # knot 자동층(v3.0.0부터 loadout 카탈로그가 주입). 미설치(마커 부재)는 정상 PASS.
 KNOT_BLOCK = SCRIPT_DIR / "knot_block.md"
@@ -144,9 +160,12 @@ def run_checks(target: Path, flavor: str) -> list[tuple[bool, str]]:
         c6_ok, c6_why = _gemini_policy_ok(read(target, "_shared/backends.json"))
     check(c6_ok, f"C6 gemini 정책 {('— ' + c6_why) if not c6_ok else '(OK)'}")
 
-    # C6b antigravity 전용: 워커셋이 정확히 {claude-main,codex-main,codex-critic}이고
-    # gemini 워커 호출 잔재 없음. subset 검사는 워커 누락(예: codex-critic 빠짐)을 통과시키므로
-    # 정확집합으로 조인다. (schema 1 'workers' 맵 기준 — 스키마 전환 아님)
+    # C6b antigravity 전용 (2026-07-18 완화): 정확집합 → "핵심3 필수 + gemini 워커 없음 +
+    # 추가 워커는 크로스벤더 grok(grok-critic/grok-intel)만 허용". 오케스트레이터=Gemini라 동일벤더
+    # gemini 워커는 자기검수라 금지하되, xAI grok은 크로스벤더라 독립성 원칙에 안 걸려 허용한다.
+    # ★열거형(GROK_ALLOWED)으로 조인다 — "크로스벤더면 OK"라는 술어 규칙은 미래의 임의 워커(오타
+    # config·실험 잔재·버전불일치)가 조용히 통과하는 드리프트 구멍이라 금지(GPT+Claude 웹챗 합의).
+    # 핵심3 subset은 여전히 필수라 워커 누락도 잡는다. (schema 1 'workers' 맵 기준.)
     if flavor == "antigravity":
         try:
             ws = set((json.loads(read(target, "_shared/backends.json") or "{}").get("workers") or {}).keys())
@@ -154,9 +173,39 @@ def run_checks(target: Path, flavor: str) -> list[tuple[bool, str]]:
             ws = set()
         tf = read(target, "_templates/task-folder.md") or ""
         no_gem = all("call_worker.sh gemini" not in t for t in (routing, tf, instr_txt))
-        set_ok = ws == {"claude-main", "codex-main", "codex-critic"}
+        _CORE3 = {"claude-main", "codex-main", "codex-critic"}
+        _GROK_ALLOWED = {"grok-critic", "grok-intel"}
+        core_present = _CORE3 <= ws
+        extras_ok = (ws - _CORE3) <= _GROK_ALLOWED
+        no_gemini_worker = "gemini" not in ws
+        set_ok = core_present and extras_ok and no_gemini_worker
         check(no_gem and set_ok,
-              f"C6b 워커셋 {sorted(ws)} == 정확집합 {{claude-main,codex-main,codex-critic}} + gemini 워커 호출 잔재 없음")
+              f"C6b 워커셋 {sorted(ws)}: 핵심3 필수(={core_present}) + gemini 워커 없음(={no_gemini_worker}) "
+              f"+ 추가는 grok만(={extras_ok}) + gemini 호출 잔재 없음")
+
+    # C6c grok 전용: 오케스트레이터 자체가 grok(xAI)이므로 grok-critic/grok-intel 같은 동일벤더
+    # 워커는 자기검수라 금지한다(antigravity의 C6b와 동형 — gemini 오케스트레이터가 gemini 워커를
+    # 금지하는 것과 같은 원리). 워커셋은 크로스벤더 핵심4(claude-main/codex-main/codex-critic/
+    # gemini)로 **정확히 일치**해야 한다 — 술어("크로스벤더면 OK")가 아니라 열거형으로 조여
+    # 오타 config·실험 잔재·미래의 임의 워커가 조용히 통과하는 드리프트 구멍을 막는다(C6b와 동일
+    # 근거). (schema 1 'workers' 맵 기준.)
+    if flavor == "grok":
+        try:
+            ws = set((json.loads(read(target, "_shared/backends.json") or "{}").get("workers") or {}).keys())
+        except Exception:  # noqa: BLE001
+            ws = set()
+        tf = read(target, "_templates/task-folder.md") or ""
+        _CORE4 = {"claude-main", "codex-main", "codex-critic", "gemini"}
+        _GROK_FORBIDDEN = {"grok-critic", "grok-intel"}
+        set_ok = ws == _CORE4
+        no_grok_worker = not (ws & _GROK_FORBIDDEN)
+        no_grok_residue = all(
+            ("call_worker.sh grok-critic" not in t) and ("call_worker.sh grok-intel" not in t)
+            for t in (routing, tf, instr_txt)
+        )
+        check(set_ok and no_grok_worker and no_grok_residue,
+              f"C6c 워커셋 {sorted(ws)} == 핵심4(={set_ok}) + grok 워커 없음(={no_grok_worker}) "
+              f"+ grok 워커 호출 잔재 없음(={no_grok_residue})")
 
     # C7 write_scope 값 일관 (tasks-only 가 지침/routing/brief에 존재)
     ws = all("tasks-only" in t for t in (instr_txt, routing, brief_tpl))
@@ -181,6 +230,24 @@ def run_checks(target: Path, flavor: str) -> list[tuple[bool, str]]:
 
     # (구 C12 요금가드 배선 검증은 v3.2.0부터 loadout doctor 소관 — 정본 이관)
 
+    # C13 v4 런타임 — _shared/runtime/ 15개 모듈 전부 생성물에 존재 (flavor 공통).
+    missing_rt = [m for m in RUNTIME_MODULES if not (target / "_shared/runtime" / m).is_file()]
+    check(not missing_rt, f"C13 v4 런타임 15모듈 존재 (없음: {missing_rt or '-'})")
+
+    # C14 envelope v2 sanity — schema.py가 SCHEMA_VERSION = "2"를 정의.
+    schema_txt = read(target, "_shared/runtime/schema.py") or ""
+    c14_ok = bool(re.search(r'SCHEMA_VERSION\s*=\s*["\']2["\']', schema_txt))
+    check(c14_ok, "C14 envelope v2 — schema.py SCHEMA_VERSION == \"2\"")
+
+    # C15 writer-authority 레이아웃(C5c) — reducer.py·provenance.py 존재 +
+    # schema.py가 WRITER_AUTHORITY를 정의.
+    c15_files_ok = (target / "_shared/runtime/reducer.py").is_file() and \
+        (target / "_shared/runtime/provenance.py").is_file()
+    c15_wa_ok = bool(re.search(r'^WRITER_AUTHORITY\s*=', schema_txt, re.M))
+    check(c15_files_ok and c15_wa_ok,
+          f"C15 writer-authority 레이아웃 (reducer/provenance 존재: {c15_files_ok}, "
+          f"schema.WRITER_AUTHORITY 정의: {c15_wa_ok})")
+
     return results
 
 
@@ -188,7 +255,7 @@ _CALL_TYPES = {"native", "mcp", "cli", "api"}
 _APPROVAL = {"worker", "orchestrator"}
 _CAPTURE = {"orchestrator", "tool-return", "stdout", "envelope"}
 _BRIEF_MODES = {"path", "content", "stdin", "file-arg"}
-_CLI_ALLOWLIST = {"agy", "codex", "claude"}
+_CLI_ALLOWLIST = {"agy", "codex", "claude", "grok"}
 
 
 def _backend_record_problems(rec: dict, where: str, target: Path, *, is_fallback: bool) -> list[str]:
