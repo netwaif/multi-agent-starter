@@ -27,7 +27,7 @@ description: Use when the user wants to set up / scaffold / install a file-based
 ## 동작 보장
 
 - **결정적**: 번들 템플릿을 그대로 복사. 모델이 시스템 파일을 창작하지 않는다.
-- **안전**: 대상에 기존 `tasks/`·`_local/` 사용자 데이터가 있으면 보존(update 모드).
+- **안전**: 대상에 기존 `tasks/`·`_local/` 사용자 데이터가 있으면 보존(update 모드). 기존 지침파일(CLAUDE.md/AGENTS.md)은 덮어쓰기 전 `.multiagent-bak`으로 백업하고, loadout store 조각 블록(`<!-- store:*:start/end -->`)은 새 지침파일 끝에 재부착한다.
 - **쓰기 권한**: 파일 생성이므로 쓰기 권한이 필요하다. Codex에서는 `workspace-write` + 승인이 필요할 수 있다 — 막히면 사용자에게 권한을 안내한다.
 
 ## Do NOT

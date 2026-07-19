@@ -41,10 +41,19 @@ def main() -> None:
         # 시스템 파일 변조(update가 되돌리는지)
         (tgt / "_shared" / "routing.md").write_text("STALE", encoding="utf-8")
 
+        # 지침파일에 loadout store 블록 심기(update가 보존하는지 — v3.4 결함 수정)
+        block = ("<!-- store:no-yesman:start -->\n"
+                 "예스맨 금지 규칙 본문\n"
+                 "<!-- store:no-yesman:end -->")
+        instr = tgt / "CLAUDE.md"
+        before = instr.read_text(encoding="utf-8")
+        instr.write_text(before + "\n" + block + "\n", encoding="utf-8")
+
         if init(tgt).returncode != 0:  # update 모드
             print("  FAIL update init")
             sys.exit(1)
 
+        bak = tgt / "CLAUDE.md.multiagent-bak"
         checks = [
             ("tasks/my-task/task.md 보존",
              (ut / "task.md").read_text(encoding="utf-8") == "USER DATA"),
@@ -52,6 +61,10 @@ def main() -> None:
              (ul / "learnings.md").read_text(encoding="utf-8") == "LOCAL"),
             ("_shared/routing.md 갱신",
              (tgt / "_shared" / "routing.md").read_text(encoding="utf-8") != "STALE"),
+            ("CLAUDE.md store 블록 보존",
+             block in instr.read_text(encoding="utf-8")),
+            ("CLAUDE.md 덮어쓰기 전 백업 생성",
+             bak.is_file() and block in bak.read_text(encoding="utf-8")),
         ]
         for desc, ok in checks:
             print(f"  {'PASS' if ok else 'FAIL'} {desc}")

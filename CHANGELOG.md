@@ -5,6 +5,20 @@
 (정본: `generator/templates/{claude,codex}/CHANGELOG.md`)를 참조한다.
 형식은 [Keep a Changelog](https://keepachangelog.com/), 버전은 [Semantic Versioning](https://semver.org/lang/ko/)을 따른다.
 
+## [3.4.0] - 2026-07-19
+
+### Fixed
+- **update 모드 지침파일 유실 결함** — `init.py`가 기존 CLAUDE.md/AGENTS.md를 백업 없이
+  덮어써 loadout store 조각(`<!-- store:*:start/end -->` 블록)이 유실되던 문제 수정.
+  이제 덮어쓰기 전 원문을 `<지침파일>.multiagent-bak`으로 백업하고, store 블록을 새
+  지침파일 끝에 재부착한다(`preserve_instruction`). 마커 밖 사용자 수기 내용은 자동
+  병합하지 않음 — 백업에서 수동 복원.
+- SKILL.md·init.py의 "보존" 안내 문구를 실제 동작(tasks/·_local/ + 지침파일 백업·재부착)에
+  맞게 정정.
+
+### Added
+- `tests/test_update_preserve.py`에 store 블록 보존·백업 생성 검사 2건.
+
 ## [3.3.0] - 2026-07-13
 
 ### Added
