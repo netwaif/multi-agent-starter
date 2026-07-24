@@ -39,14 +39,8 @@
       "approval_class": "worker",
       "result_capture": "envelope",
       "timeout": 300,
-      "fallbacks": [
-        {
-          "model": "gemini-3.1-pro-high", "call_type": "api", "timeout": 300,
-          "approval_class": "worker", "result_capture": "envelope",
-          "api": { "ref": "adapters/gemini_api.sh", "required_env": ["GEMINI_API_KEY"],
-                   "brief_pass": "arg1", "retry": { "max": 2, "backoff_s": 2 } }
-        }
-      ]
+      "fallbacks": [],
+      "fallback_note": "api 폴백 슬롯(adapters/gemini_api.sh)은 미구현(무조건 exit 4)이라 비활성 — 등록 시 거짓 안전신호. REST 구현 후 재등록."
     }
   }
 }

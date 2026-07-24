@@ -3,6 +3,20 @@
 이 파일은 MultiAgent orchestration 시스템의 주요 변경을 기록한다.
 형식은 [Keep a Changelog](https://keepachangelog.com/), 버전은 [Semantic Versioning](https://semver.org/lang/ko/)을 따른다.
 
+## [1.3.1] - 2026-07-24
+
+### Fixed
+- **codex sandbox 실행계약 모순 교정** — `backends.json`의 codex-main이 `read-only`로
+  선언돼 routing.md(`workspace-write` 고정)·CLAUDE.md 쓰기 정책 표(tasks/ 내부 직접 작성)와
+  모순되던 드리프트 수정. codex-main = `workspace-write`, codex-critic = `read-only`로
+  통일하고 CLI 폴백에도 `--sandbox`·`cwd_policy: target` 명시. 근거: design-basis D10.
+- **gemini api 폴백 비활성** — 미구현 스텁(`gemini_api.sh`, 무조건 exit 4)이 fallbacks에
+  등록돼 "폴백 있음"이라는 거짓 안전신호를 내던 문제. fallbacks에서 제거(구현 후 재등록).
+
+### Added
+- **INV13(backends 실행계약 정합)** — codex sandbox 계약·gemini 폴백 비활성을 jq 기반
+  PASS/FAIL로 자가점검. codex MCP stale 시 `codex exec` 헤드리스 폴백 절차를 routing.md에 정본화.
+
 ## [1.3.0] - 2026-07-13
 
 ### Added

@@ -2,6 +2,13 @@
 
 이 파일은 multi-agent-starter (Codex flavor) orchestration 시스템의 주요 변경을 기록한다.
 
+## [0.4.1] - 2026-07-24
+
+### Fixed
+- **gemini api 폴백 비활성** — 미구현 스텁(`gemini_api.sh`, 무조건 exit 4)이 `backends.json`
+  fallbacks에 등록돼 "폴백 있음"이라는 거짓 안전신호를 내던 문제. fallbacks에서 제거하고
+  routing.md·design-basis D4 문구 동기화(Gemini REST 구현 후 재등록).
+
 ## [0.4.0] - 2026-07-13
 
 ### Added

@@ -5,6 +5,14 @@
 (정본: `generator/templates/{claude,codex}/CHANGELOG.md`)를 참조한다.
 형식은 [Keep a Changelog](https://keepachangelog.com/), 버전은 [Semantic Versioning](https://semver.org/lang/ko/)을 따른다.
 
+## [3.4.1] - 2026-07-24
+
+### Fixed
+- **claude flavor 1.3.1 / codex flavor 0.4.1** — backends.json 실행계약 모순 교정
+  (codex-main sandbox `read-only`→`workspace-write`, CLI 폴백 sandbox·cwd 명시) +
+  미구현 gemini api 폴백 비활성(거짓 안전신호 제거) + INV13 신설(claude flavor).
+  발견 경위: Fable5∥Sol 이중 독립 시스템 리뷰(공통 검출 C1·C3).
+
 ## [3.4.0] - 2026-07-19
 
 ### Fixed
