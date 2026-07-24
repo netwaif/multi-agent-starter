@@ -2,12 +2,19 @@
 
 이 파일은 multi-agent-starter (Codex flavor) orchestration 시스템의 주요 변경을 기록한다.
 
-## [0.4.1] - 2026-07-24
+## [0.5.0] - 2026-07-24
+
+### Added
+- **불변식 자가점검 러너 `_shared/check-invariants.sh`** — exit-code 판정(false PASS 방지),
+  system-invariants.md 수동 스크립트 블록 대체. INV12(gemini 폴백 비활성) 신설.
+- **디스패처 payload 동봉** — `call_worker.sh <role> <brief> [payload]` + `--merged-preview`.
+  gemini 소스 검토 자료를 brief 인라인 대신 `sources/gemini-packet.md`로 동봉. design-basis D9.
 
 ### Fixed
 - **gemini api 폴백 비활성** — 미구현 스텁(`gemini_api.sh`, 무조건 exit 4)이 `backends.json`
   fallbacks에 등록돼 "폴백 있음"이라는 거짓 안전신호를 내던 문제. fallbacks에서 제거하고
   routing.md·design-basis D4 문구 동기화(Gemini REST 구현 후 재등록).
+- backends.json에서 디스패처가 읽지 않는 선언(`write_policy`·`non_interactive`) 제거.
 
 ## [0.4.0] - 2026-07-13
 

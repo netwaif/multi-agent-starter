@@ -116,7 +116,7 @@ wc -w tasks/<task>/context.md   # 영문 단어수
 ```
 
 **context.md 초과 시**: 핵심만 남기고 나머지는 `log.md`에 append 후 초기화.  
-**brief 작성 원칙**: 파일 내용을 inline 금지. 경로만 전달.
+**brief 작성 원칙**: 파일 내용을 inline 금지. 경로만 전달. 대용량 자료 동봉이 필요한 호출(예: gemini 소스 검토)은 `sources/` packet 파일 + 디스패처 payload 인자(`call_worker.sh <role> <brief> <packet>`)로 — brief 한도·inline 금지 규칙은 그대로 유지된다.
 
 ## Approval Gate
 

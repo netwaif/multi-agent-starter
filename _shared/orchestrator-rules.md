@@ -24,7 +24,7 @@ MultiAgent Orchestrator는 인터랙티브 Claude Code 세션에서만 실행한
 **절차**:
 1. `_shared/design-basis.md` 를 읽는다 — 개념↔규칙 매핑·권위 우선순위·기존 결정(D*). GitHub 레퍼런스부터 재분석하지 말 것. design-basis로 충분.
 2. 수정한다 (권위 우선순위 준수: CLAUDE.md > routing/approval/orchestrator-rules > 매뉴얼).
-3. `_shared/system-invariants.md` 의 자가 점검 스크립트를 실행한다.
+3. 자가 점검 러너를 실행한다: `bash _shared/check-invariants.sh` (불변식 정의는 `_shared/system-invariants.md` 표).
 4. 통과 시에만 커밋. 깨지면 고치거나, 의도된 변경이면 `design-basis.md`의 결정(D*)과 `system-invariants.md`를 함께 갱신한 뒤 커밋.
 
 **전면 재감사 조건**: 새 외부 개념·레퍼런스 도입, worker pool 구성·역할 변경, 불변식으로 표현 불가한 구조 변경일 때만 새 `tasks/<task>/`로 codex-critic/gemini 포함 재점검. 그 외 일반 수정은 위 4단계로 충분 — 매번 바닥부터 분석하지 않는다.

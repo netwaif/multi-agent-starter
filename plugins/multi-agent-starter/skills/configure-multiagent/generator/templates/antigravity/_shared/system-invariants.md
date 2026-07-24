@@ -18,61 +18,15 @@
 | INV10 | `gemini` 워커 호출(`call_worker.sh gemini`)·옛 `mcp__gemini-pro__*` 브리지가 활성 지침으로 없음 |
 | INV11 | 카파시 4원칙(D7): `AGENTS.md`에 "Operating Principles" 섹션 존재, `_templates/worker-brief.md`에 "Worker 행동 규약" 고정 블록 존재, 블록 안에 사용자질문 지시(질문/ask) 없음, `worker-result.md` 체크리스트에 표면화 항목 존재 |
 
-## 자가 점검 스크립트
+## 자가 점검 실행
 
-`<설치한-폴더>`에서 실행한다.
+정본 러너 = `_shared/check-invariants.sh` (exit-code 판정).
 
 ```bash
-ROOT=<설치한-폴더>
-
-echo "INV1 tasks-only 분포"
-grep -l 'tasks-only' "$ROOT/AGENTS.md" "$ROOT/_shared/routing.md" \
-  "$ROOT/_templates/worker-brief.md" "$ROOT/_templates/task-folder.md"
-
-echo "INV2 gemini 워커/gemini-critic 활성 참조 (출력 없어야 PASS)"
-grep -rn 'call_worker.sh gemini\|gemini-critic\|- \*\*gemini\*\*' \
-  "$ROOT/AGENTS.md" "$ROOT/README.md" "$ROOT/_shared/routing.md" \
-  "$ROOT/_shared/approval-policy.md" "$ROOT/_templates" || echo " 없음 PASS"
-
-echo "INV3 codex-critic 비평 워커 존재"
-grep -rn 'codex-critic' "$ROOT/AGENTS.md" "$ROOT/_shared/routing.md" "$ROOT/_templates"
-
-echo "INV4 log 태그"
-grep -n 'DECISION | WORKER_CALL | VERIFICATION | ERROR | APPROVAL | COMPLETE' "$ROOT/_templates/log.md" "$ROOT/AGENTS.md"
-
-echo "INV5 한도 수치"
-grep -rn '1500자\|1200자\|1500 chars\|1200 chars' "$ROOT/AGENTS.md" "$ROOT/_templates/context.md" "$ROOT/_templates/worker-brief.md"
-
-echo "INV6 권위 우선순위"
-grep -rn 'AGENTS.md.*routing.md' "$ROOT/_shared/design-basis.md" "$ROOT/_shared/orchestrator-rules.md"
-
-echo "INV7 재진입"
-grep -q '재진입 프로토콜' "$ROOT/_shared/orchestrator-rules.md" && echo " orchestrator-rules PASS" || echo " orchestrator-rules FAIL"
-grep -q 're-entry protocol\|재진입 프로토콜' "$ROOT/AGENTS.md" && echo " AGENTS.md PASS" || echo " AGENTS.md FAIL"
-
-echo "INV8 토폴로지 4패턴"
-for p in 'Pipeline' 'Fan-out/Fan-in' 'Expert Pool' 'Producer-Reviewer'; do
-  grep -q "$p" "$ROOT/_shared/routing.md" && echo " $p PASS" || echo " $p FAIL"
-done
-
-echo "INV9 오케스트레이터·워커셋 (Gemini 3.1 Pro High + claude-main/codex-main/codex-critic)"
-grep -q 'Gemini 3.1 Pro High' "$ROOT/AGENTS.md" && echo " orchestrator PASS" || echo " orchestrator FAIL"
-for w in claude-main codex-main codex-critic; do
-  grep -q "\"$w\"" "$ROOT/_shared/backends.json" && echo " $w PASS" || echo " $w FAIL"
-done
-
-echo "INV10 gemini 워커 호출/옛 프록시 활성 (출력 없어야 PASS; 폐기문맥 제외)"
-grep -rn 'call_worker.sh gemini\|mcp__gemini-pro__\|mcp__gemini__gemini_' \
-  "$ROOT/_shared/routing.md" "$ROOT/_templates/task-folder.md" "$ROOT/AGENTS.md" "$ROOT/_shared/backends.json" \
-  | grep -viE '폐기|deprecat' || echo " 없음 PASS"
-
-echo "INV11 카파시 4원칙 — Operating Principles 섹션 + Worker 행동 규약 블록 + result 표면화 항목 (셋 다 나와야 PASS)"
-grep -n 'Operating Principles' "$ROOT/AGENTS.md"
-grep -n 'Worker 행동 규약' "$ROOT/_templates/worker-brief.md"
-grep -n '표면화' "$ROOT/_templates/worker-result.md"
-echo "INV11b 블록 내 사용자질문 표현 (출력 없어야 PASS)"
-sed -n '/^## Worker 행동 규약/,/^## Execution/p' "$ROOT/_templates/worker-brief.md" | grep -inE '질문|ask' || echo " 없음 PASS"
+bash _shared/check-invariants.sh   # 전 항목 판정. 하나라도 FAIL → exit 비0 (커밋 금지)
 ```
+
+표(정의)와 러너(판정)가 어긋나면 표에 맞춰 러너를 고친다. 불변식 추가 시 러너에 판정을 함께 추가한다.
 
 ## 전면 재감사가 필요한 경우
 

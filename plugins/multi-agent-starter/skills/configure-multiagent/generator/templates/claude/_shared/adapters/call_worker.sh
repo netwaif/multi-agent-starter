@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # call_worker.sh — backends.json 디스패처 (cli/api 전용).
 # native/mcp는 오케스트레이터가 직접 호출(디스패처 비경유).
-# 사용: call_worker.sh <role> <brief-file>
+# 사용: call_worker.sh <role> <brief-file> [payload-file]
+#   payload-file(선택): brief 한도(1200자)와 별도인 동봉 자료(예: sources/gemini-packet.md).
+#   디스패처가 brief 뒤에 결합해 전달 — brief 본문 inline 금지 규칙과 충돌 없이 대용량 자료 전달.
+#   미리보기: call_worker.sh --merged-preview <brief-file> <payload-file>  (백엔드 호출 없이 결합 결과 출력)
 # 반환: stdout에 result envelope(JSON). exit 0=성공, 비0=실패/거부.
 set -euo pipefail
 
@@ -14,15 +17,18 @@ mktmpd() { local t; t="$(mktemp -d)"; _TMPS+=("$t"); printf '%s' "$t"; }
 
 die() { echo "call_worker: $1" >&2; exit "${2:-1}"; }
 
-ROLE="${1:-}"; BRIEF="${2:-}"
-[ -n "$ROLE" ] && [ -n "$BRIEF" ] || die "usage: call_worker.sh <role> <brief-file>" 64
+PREVIEW=0
+if [ "${1:-}" = "--merged-preview" ]; then PREVIEW=1; shift; set -- "_preview" "$@"; fi
+
+ROLE="${1:-}"; BRIEF="${2:-}"; PAYLOAD="${3:-}"
+[ -n "$ROLE" ] && [ -n "$BRIEF" ] || die "usage: call_worker.sh <role> <brief-file> [payload-file]" 64
 
 SCRIPT_DIR="$(cd "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="${MULTIAGENT_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 BACKENDS="$ROOT/_shared/backends.json"
 
 command -v jq >/dev/null 2>&1 || die "jq 필요(JSON 파싱)" 5
-[ -f "$BACKENDS" ] || die "backends.json 없음: $BACKENDS" 5
+[ "$PREVIEW" = 1 ] || [ -f "$BACKENDS" ] || die "backends.json 없음: $BACKENDS" 5
 
 # timeout: coreutils timeout/gtimeout 우선, 없으면 portable bash 폴백(둘 다 유한 보장)
 TIMEOUT_BIN=""
@@ -40,6 +46,19 @@ run_limited() {  # run_limited <secs> -- <cmd...>
 case "$BRIEF" in *..*) die "brief 경로에 '..' 금지" 6;; esac
 [ -f "$BRIEF" ] || die "brief 파일 없음: $BRIEF" 6
 BRIEF="$(cd "$(dirname -- "$BRIEF")" && pwd)/$(basename -- "$BRIEF")"
+
+# payload(선택) — brief 한도 밖 동봉 자료. brief 뒤에 결합한 임시 brief로 치환.
+if [ -n "$PAYLOAD" ]; then
+  case "$PAYLOAD" in *..*) die "payload 경로에 '..' 금지" 6;; esac
+  [ -f "$PAYLOAD" ] || die "payload 파일 없음: $PAYLOAD" 6
+  MERGED="$(mktmp)"
+  { cat -- "$BRIEF"
+    printf '\n\n---\n\n# 동봉 자료 (payload — orchestrator가 결합. 이 자료만 사용하고 파일 열지 말 것)\n\n'
+    cat -- "$PAYLOAD"
+  } >"$MERGED"
+  BRIEF="$MERGED"
+fi
+if [ "$PREVIEW" = 1 ]; then cat -- "$BRIEF"; exit 0; fi
 
 rec="$(jq -c --arg r "$ROLE" '.workers[$r] // empty' "$BACKENDS")"
 [ -n "$rec" ] || die "role 미정의: $ROLE" 2

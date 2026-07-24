@@ -3,7 +3,7 @@
 이 파일은 MultiAgent orchestration 시스템의 주요 변경을 기록한다.
 형식은 [Keep a Changelog](https://keepachangelog.com/), 버전은 [Semantic Versioning](https://semver.org/lang/ko/)을 따른다.
 
-## [1.3.1] - 2026-07-24
+## [1.4.0] - 2026-07-24
 
 ### Fixed
 - **codex sandbox 실행계약 모순 교정** — `backends.json`의 codex-main이 `read-only`로
@@ -16,6 +16,14 @@
 ### Added
 - **INV13(backends 실행계약 정합)** — codex sandbox 계약·gemini 폴백 비활성을 jq 기반
   PASS/FAIL로 자가점검. codex MCP stale 시 `codex exec` 헤드리스 폴백 절차를 routing.md에 정본화.
+- **불변식 자가점검 러너 `_shared/check-invariants.sh`** — 자가점검을 "grep 눈 판독"에서
+  exit-code 판정으로 전환(false PASS 방지). `--self-test` = 불변식을 하나씩 깨뜨린 fixture가
+  FAIL하는지 러너 자체 검증. system-invariants.md의 수동 스크립트 블록 대체.
+- **디스패처 payload 동봉** — `call_worker.sh <role> <brief> [payload]` + `--merged-preview`.
+  gemini 소스 검토 자료를 brief 인라인 대신 `sources/gemini-packet.md`로 동봉(디스패처 결합) —
+  brief 불변식(inline 금지·1200자)과의 모순 해소. design-basis D13.
+- backends.json에서 디스패처가 읽지 않는 선언(`write_policy`·`non_interactive`) 제거
+  (희망사항 config = 거짓 안전신호 방지, D11 후속).
 
 ### Changed
 - **design-basis 결정 번호 재정렬** — 라우팅 2층 분리 D9→D12, backends 실행계약 D10→D11.

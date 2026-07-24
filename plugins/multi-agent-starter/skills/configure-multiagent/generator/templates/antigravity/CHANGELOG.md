@@ -2,6 +2,18 @@
 
 이 파일은 multi-agent-starter (Antigravity flavor) orchestration 시스템의 주요 변경을 기록한다.
 
+## [0.3.1] - 2026-07-24
+
+### Added
+- **불변식 자가점검 러너 `_shared/check-invariants.sh`** — exit-code 판정(false PASS 방지),
+  system-invariants.md 수동 스크립트 블록 대체.
+- **디스패처 payload 동봉** — `call_worker.sh <role> <brief> [payload]` + `--merged-preview`
+  (대용량 자료는 `sources/` packet으로 동봉, brief 불변식 유지). design-basis D9.
+
+### Fixed
+- backends.json에서 디스패처가 읽지 않는 선언(`write_policy`·`non_interactive`) 제거
+  (희망사항 config = 거짓 안전신호 방지).
+
 ## [0.3.0] - 2026-07-13
 
 ### Added

@@ -93,6 +93,7 @@ def run_checks(target: Path, flavor: str) -> list[tuple[bool, str]]:
         "_shared/routing.md", "_shared/capability-profile.md",
         "_shared/orchestrator-rules.md",
         "_shared/design-basis.md", "_shared/system-invariants.md",
+        "_shared/check-invariants.sh",
         "_templates/log.md", "_templates/context.md", "_templates/worker-brief.md",
     ] + cfg["extra_files"]
     missing = [r for r in required if not (target / r).is_file()]

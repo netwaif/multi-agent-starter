@@ -94,7 +94,7 @@ write_scope: none | tasks-only | "src/**, tests/**"
 - **용도**: 이미지/스크린샷/다이어그램 분석, 50페이지 이상 문서 스캔, 제3자 시각의 검토.
 - **결과물**: 분석 텍스트, 요약, 검토 의견.
 - **호출 방식**: `_shared/backends.json`의 `gemini`가 정본 — 백엔드 = Antigravity `agy` CLI, 디스패처 `bash _shared/adapters/call_worker.sh gemini <brief-file>`(결과 JSON envelope). 기본 `gemini-3.1-pro-high`, 빠른 경로 `gemini-3-flash`/`pro-low`, 폴백 없음(아래 폴백 조건). 옛 `mcp__gemini-pro__*` 프록시 브리지 폐기.
-- **소스·다중파일 검토는 인라인 필수**: 소스 코드 발굴·검토를 시킬 땐 **디렉토리나 다수 파일 순회를 시키지 말 것** — agy 헤드리스가 300s 타임아웃(exit 124)으로 실패한다(2026-07-04 실측). 필요한 스니펫을 orchestrator가 brief 본문에 **인라인**하고 "파일 열지 말 것"을 명시하라(인라인 재호출 실측 = 27s exit 0). 단일 이미지/PDF 경로 참조는 예외. 시간 제한 작업에서 gemini에 의존하기 전 경량 스모크 1회로 가용성부터 확인.
+- **소스·다중파일 검토는 packet 동봉 필수**: 소스 코드 발굴·검토를 시킬 땐 **디렉토리나 다수 파일 순회를 시키지 말 것** — agy 헤드리스가 300s 타임아웃(exit 124)으로 실패한다(2026-07-04 실측, 자료 동봉 재호출 = 27s exit 0). 필요한 스니펫은 brief에 인라인하지 말고(brief 한도·inline 금지 유지) `tasks/<task>/sources/gemini-packet.md`에 담아 **디스패처 3번째 인자로 동봉**한다: `call_worker.sh gemini <brief> <packet>` — 디스패처가 brief 뒤에 "동봉 자료" 헤더로 결합(`--merged-preview`로 사전 확인). brief에는 "동봉 자료만 사용, 파일 열지 말 것"을 명시. 단일 이미지/PDF 경로 참조는 예외. 시간 제한 작업에서 gemini에 의존하기 전 경량 스모크 1회로 가용성부터 확인.
 - **폴백 조건**: api 폴백 슬롯(`adapters/gemini_api.sh`)은 **미구현·비활성**(키가 있어도 무조건 exit 4). backends.json `fallbacks`에서 제거됨(거짓 안전신호 방지). agy(primary) 실패 시 폴백 없이 실패한다(사유는 envelope `stderr_sanitized`). Gemini REST 호출 구현 후에만 fallbacks 재등록.
 - **쓰기 권한**: 없음. Orchestrator가 응답을 `result.md`에 기록한다.
 

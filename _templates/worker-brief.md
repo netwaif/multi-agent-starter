@@ -30,6 +30,8 @@ context: tasks/<task-name>/context.md
 sources: tasks/<task-name>/sources/<file>
 # gemini 이미지/PDF 검수: 분석 대상의 절대경로를 본문에 직접 적는다(아래 예).
 # image: /absolute/path/to/thumb.png   ← agy가 본문 경로를 열어 본다. --add-dir 쓰지 말 것.
+# gemini 소스·다중파일 검토: 스니펫을 brief에 넣지 말고 sources/gemini-packet.md에 담아
+# 디스패처 3번째 인자로 동봉한다: call_worker.sh gemini <brief> <packet> (routing.md gemini 절)
 ```
 
 ## Constraints

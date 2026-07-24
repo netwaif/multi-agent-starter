@@ -10,11 +10,12 @@
       "brief_mode": "content",
       "cli": {
         "command": "claude",
-        "args_template": ["--prompt", "@brief_content"],
-        "non_interactive": { "stdin": "/dev/null", "no_tty": true, "on_permission_prompt": "fail" }
+        "args_template": [
+          "--prompt",
+          "@brief_content"
+        ]
       },
       "cwd_policy": "repo_root",
-      "write_policy": "none",
       "approval_class": "worker",
       "result_capture": "envelope",
       "timeout": 600
@@ -25,11 +26,12 @@
       "brief_mode": "content",
       "cli": {
         "command": "codex",
-        "args_template": ["exec", "@brief_content"],
-        "non_interactive": { "stdin": "/dev/null", "no_tty": true, "on_permission_prompt": "fail" }
+        "args_template": [
+          "exec",
+          "@brief_content"
+        ]
       },
       "cwd_policy": "repo_root",
-      "write_policy": "none",
       "approval_class": "worker",
       "result_capture": "envelope",
       "timeout": 600
@@ -40,11 +42,12 @@
       "brief_mode": "content",
       "cli": {
         "command": "codex",
-        "args_template": ["exec", "@brief_content"],
-        "non_interactive": { "stdin": "/dev/null", "no_tty": true, "on_permission_prompt": "fail" }
+        "args_template": [
+          "exec",
+          "@brief_content"
+        ]
       },
       "cwd_policy": "repo_root",
-      "write_policy": "none",
       "approval_class": "worker",
       "result_capture": "envelope",
       "timeout": 600

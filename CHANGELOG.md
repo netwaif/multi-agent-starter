@@ -5,10 +5,21 @@
 (정본: `generator/templates/{claude,codex}/CHANGELOG.md`)를 참조한다.
 형식은 [Keep a Changelog](https://keepachangelog.com/), 버전은 [Semantic Versioning](https://semver.org/lang/ko/)을 따른다.
 
-## [3.4.1] - 2026-07-24
+## [3.5.0] - 2026-07-24
+
+### Added
+- **불변식 자가점검 러너 `_shared/check-invariants.sh`** (3 flavor) — 기존 "grep 출력을 눈으로
+  판독"하던 자가점검을 exit-code 판정으로 전환(false PASS 방지). claude flavor는
+  `--self-test`(불변식을 하나씩 깨뜨린 fixture가 FAIL하는지 러너 자체 검증) 포함.
+  validate C1 필수 파일에 편입.
+- **디스패처 payload 동봉** — `call_worker.sh <role> <brief> [payload]` 3번째 인자 +
+  `--merged-preview`. gemini 소스 검토의 "brief 인라인 필수"와 brief 불변식(inline 금지·
+  1200자)의 모순 해소: 자료는 `sources/gemini-packet.md`로 분리, 디스패처가 결합.
 
 ### Fixed
-- **claude flavor 1.3.1 / codex flavor 0.4.1** — backends.json 실행계약 모순 교정
+- **backends.json 미소비 선언 제거** — 디스패처가 읽지 않는 `write_policy`·`non_interactive`
+  필드를 3 flavor에서 제거(희망사항 config = 거짓 안전신호).
+- **claude flavor 1.4.0 / codex flavor 0.5.0 / antigravity flavor 0.3.1** — backends.json 실행계약 모순 교정
   (codex-main sandbox `read-only`→`workspace-write`, CLI 폴백 sandbox·cwd 명시) +
   미구현 gemini api 폴백 비활성(거짓 안전신호 제거) + INV13 신설(claude flavor).
   발견 경위: Fable5∥Sol 이중 독립 시스템 리뷰(공통 검출 C1·C3).

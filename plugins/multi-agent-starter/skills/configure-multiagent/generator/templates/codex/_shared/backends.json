@@ -6,7 +6,11 @@
     "codex-main": {
       "model": "codex-default",
       "call_type": "native",
-      "native": { "subagent_type": "codex-main", "prompt_source": "brief", "model_alias": "codex-default" },
+      "native": {
+        "subagent_type": "codex-main",
+        "prompt_source": "brief",
+        "model_alias": "codex-default"
+      },
       "approval_class": "worker",
       "result_capture": "orchestrator"
     },
@@ -16,11 +20,12 @@
       "brief_mode": "content",
       "cli": {
         "command": "claude",
-        "args_template": ["--prompt", "@brief_content"],
-        "non_interactive": { "stdin": "/dev/null", "no_tty": true, "on_permission_prompt": "fail" }
+        "args_template": [
+          "--prompt",
+          "@brief_content"
+        ]
       },
       "cwd_policy": "isolated_tmp",
-      "write_policy": "none",
       "approval_class": "worker",
       "result_capture": "envelope",
       "timeout": 300
@@ -31,11 +36,12 @@
       "brief_mode": "content",
       "cli": {
         "command": "agy",
-        "args_template": ["--prompt", "@brief_content"],
-        "non_interactive": { "stdin": "/dev/null", "no_tty": true, "on_permission_prompt": "fail" }
+        "args_template": [
+          "--prompt",
+          "@brief_content"
+        ]
       },
       "cwd_policy": "isolated_tmp",
-      "write_policy": "none",
       "approval_class": "worker",
       "result_capture": "envelope",
       "timeout": 300,
