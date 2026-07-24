@@ -17,6 +17,13 @@
 - **INV13(backends 실행계약 정합)** — codex sandbox 계약·gemini 폴백 비활성을 jq 기반
   PASS/FAIL로 자가점검. codex MCP stale 시 `codex exec` 헤드리스 폴백 절차를 routing.md에 정본화.
 
+### Changed
+- **design-basis 결정 번호 재정렬** — 라우팅 2층 분리 D9→D12, backends 실행계약 D10→D11.
+  결정 번호를 유지보수자 루트 정본과 공유하기 위함(설치본 범위 밖 결정 D9·D10은 결번 표기).
+- **v1.3.0 개편 때 누락된 상세 규칙 복원** — gemini 이미지/PDF 검수 단일 정본 경로(필독 절)·
+  새 작업 폴더 생성 게이트 상세(orchestrator-rules §3·task-folder 안내)·worker-brief의
+  gemini 경로 주석 등 유지보수자 루트에만 남아 있던 규칙을 재수록.
+
 ## [1.3.0] - 2026-07-13
 
 ### Added

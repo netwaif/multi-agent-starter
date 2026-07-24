@@ -28,6 +28,8 @@ write_scope: none             # none | tasks-only | "src/**, tests/**" 등 패�
 task:    tasks/<task-name>/task.md
 context: tasks/<task-name>/context.md
 sources: tasks/<task-name>/sources/<file>
+# gemini 이미지/PDF 검수: 분석 대상의 절대경로를 본문에 직접 적는다(아래 예).
+# image: /absolute/path/to/thumb.png   ← agy가 본문 경로를 열어 본다. --add-dir 쓰지 말 것.
 ```
 
 ## Constraints

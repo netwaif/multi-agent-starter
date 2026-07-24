@@ -5,11 +5,13 @@
 ```
 Orchestrator (Claude Code session, internal reasoning)
 └── Worker Pool (모두 외부 호출 — 승인 필요)
-    ├── claude-main    메인 코딩 · 디버깅 · 설계 · 아키텍처 · 전략
-    ├── codex-main     보조 구현 · 코드 분석 · 테스트 · diff · 로컬 검증 · 이미지 생성
-    ├── codex-critic   산출물 리뷰·비평 (Codex의 주된 역할)
-    └── gemini         멀티모달 · 긴 문서 · 제3자 시각의 검토
+    ├── claude-main    [strategist] 기획 · 설계 · 아키텍처 · 전략 · 디자인 방향 · 문체 글쓰기 · 디버깅 원인 분석
+    ├── codex-main     [engineer·computer-use] 대규모 구현 · 코드 분석 · 테스트 · diff · 로컬 검증 · 브라우저 자동화 · 이미지 생성
+    ├── codex-critic   [reviewer] 산출물 리뷰·비평 (Codex의 주된 역할)
+    └── gemini         [multimodal] 멀티모달 · 긴 문서 · 제3자 시각의 검토
 ```
+
+능력 슬롯 → 워커 배정의 정본은 `_shared/capability-profile.md`(가변층 — 신모델 출시 시 프로필만 갱신).
 
 **중요**: Orchestrator의 내부 추론은 worker가 아님. claude-main worker 호출은 별도 모델 호출이므로 승인·쿼터 대상.
 

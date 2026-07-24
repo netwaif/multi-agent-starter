@@ -37,7 +37,13 @@ INFRA_PREFIXES = ("plugins/", ".claude-plugin/", ".agents/", "dist/", "tests/", 
 # front-page/패키지 문서 — 루트는 repo 첫 화면(설치 안내)·배포 버전 이력이고,
 # 설치된 타깃용 동명 문서는 templates/claude/ 에 독립 정본으로 둔다(서로 audience가
 # 달라 의도적으로 분기). 따라서 이 파일들은 sync 대상에서 제외한다.
-DECOUPLED_FILES = ("README.md", "CHANGELOG.md", "KNOWN_ISSUES.md")
+# design-basis·learnings 도 audience 분기(2026-07-24): 루트엔 유지보수자 전용 결정
+# (D9 knot·D10 요금가드)·전체 운영 이력이 쌓이고, 설치본은 해당 결정 결번 + 축약 이력.
+# 단 D 결정 번호는 루트가 할당하고 양쪽이 공유한다(설치본 범위 밖 결정은 결번).
+DECOUPLED_FILES = (
+    "README.md", "CHANGELOG.md", "KNOWN_ISSUES.md",
+    "_shared/design-basis.md", "_shared/learnings.md",
+)
 
 # 경로 일반화: 작성자 로컬 경로 → 플레이스홀더. (URL 안 netwaif 는 건드리지 않음)
 # 더 긴/구체 경로를 먼저 둔다(접두어 충돌 방지). 현재 둘은 서로 접두어 관계가 아니라

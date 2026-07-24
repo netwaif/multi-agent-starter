@@ -42,11 +42,15 @@ claude-main이 "내부 추론"과 같은 모델이라도 별도 호출이므로 
 workers_approved:
   - worker: claude-main
     approved_at: <YYYY-MM-DD>      # 승인 당시 날짜로 교체
-    purpose: 메인 코드 구현 및 디버깅
+    purpose: 설계·아키텍처 초안 (strategist)
+    approved_by: user
+  - worker: codex-main
+    approved_at: <YYYY-MM-DD>
+    purpose: 설계 기반 대규모 구현·테스트 (engineer)
     approved_by: user
   - worker: codex-critic
     approved_at: <YYYY-MM-DD>
-    purpose: claude-main 산출물 리뷰·비평
+    purpose: 산출물 리뷰·비평 (reviewer)
     approved_by: user
 ```
 

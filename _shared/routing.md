@@ -1,20 +1,31 @@
 # Worker Routing Rules
 
+## 2층 라우팅 — 안정층/가변층
+
+이 파일의 decision tree는 **작업 유형 → 능력 슬롯**을 정한다(안정층 — 모델 세대가 바뀌어도 유효).
+**슬롯 → 담당 워커 배정**의 정본은 `_shared/capability-profile.md`(가변층)다.
+신모델 출시·판정 변경 시 **프로필만 갱신**한다 — 이 파일의 슬롯 정의는 손대지 않는다.
+아래 트리의 워커명은 현 프로필 배정의 병기(편의 사본)다 — 프로필과 어긋나면 **프로필이 이긴다**.
+
 ## Decision Tree
 
 ```
-작업 성격 파악
+작업 성격 파악 → 능력 슬롯 → 담당 워커 (배정 정본: capability-profile.md)
 │
-├── 메인 코딩 / 디버깅 / 기획 · 설계 · 요구사항 · 전략 · 문서화?
+├── [strategist] 기획 · 설계 · 아키텍처 · 요구사항 · 전략 · UI/UX 디자인 방향
+│   · 문체가 중요한 글쓰기 · 까다로운 로직 설계 · 디버깅 원인 분석?
 │   └── claude-main
 │
-├── claude-main 산출물 리뷰 / 비판적 검증?
-│   └── codex-critic   (Codex의 주된 역할)
-│
-├── 보조 구현 / 코드 분석 / 테스트 / 이미지 생성?
+├── [engineer] 대규모 구현 · 리팩토링 · 테스트 작성·실행 · diff · 로컬 CLI 검증 · 이미지 생성?
 │   └── codex-main
 │
-├── 이미지 · 스크린샷 분석 / 50페이지+ 문서 / 제3자 시각의 검토?
+├── [computer-use] 브라우저 조작 · 복잡한 도구 워크플로우 자동화?
+│   └── codex-main
+│
+├── [reviewer] 산출물 리뷰 / 비판적 검증?
+│   └── codex-critic   (Codex의 주된 역할)
+│
+├── [multimodal] 이미지 · 스크린샷 분석 / 50페이지+ 문서 / 제3자 시각의 검토?
 │   └── gemini
 │
 └── 판단 어려움?
@@ -54,7 +65,8 @@ decision tree로 "누구를" 고른 뒤, "어떻게 엮을지" 고른다. **단�
 ## Worker 역할 상세
 
 ### claude-main
-- **용도**: 메인 코딩, 디버깅, 기획, 요구사항 정의, 설계 문서, 사용자 스토리, 아키텍처, 전략 수립
+- **슬롯**: strategist
+- **용도**: 기획, 요구사항 정의, 설계 문서, 사용자 스토리, 아키텍처, 전략 수립, UI/UX 디자인 방향, 문체가 중요한 글쓰기, 까다로운 로직 설계, 디버깅 원인 분석, (설계와 분리 곤란한) 핵심 구현
 - **결과물**: 코드 (구현·수정·diff), 설계 문서, 구조도, 의사결정 근거
 - **호출 명령**: Claude Code 내장 **Task tool (sub-agent)**
   - `subagent_type`: `claude-main` (`.claude/agents/claude-main.md`에 정의)
@@ -67,7 +79,8 @@ decision tree로 "누구를" 고른 뒤, "어떻게 엮을지" 고른다. **단�
 - ※ Orchestrator의 내부 추론과 다름.
 
 ### codex-main
-- **용도**: 보조 구현 (claude-main 산출물 기반), 코드베이스 분석, 리팩토링, 테스트 작성, diff 생성, 로컬 CLI 검증, 이미지 생성 (Codex 내장 `image_gen` 도구)
+- **슬롯**: engineer · computer-use
+- **용도**: 대규모 구현·리팩토링 (claude-main 설계 기반 또는 단독), 코드베이스 분석, 테스트 작성·실행, diff 생성, 로컬 CLI 검증, 브라우저 조작·도구 워크플로우 자동화, 이미지 생성 (Codex 내장 `image_gen` 도구)
 - **결과물**: 코드, diff, 테스트 결과, CLI 출력, PNG/SVG 이미지
 - **호출 명령**: `mcp__codex__codex` MCP 도구
   - `prompt`: brief.md 내용 그대로 전달
@@ -89,6 +102,7 @@ decision tree로 "누구를" 고른 뒤, "어떻게 엮을지" 고른다. **단�
   - 어느 경우에도 `_shared/`, `_templates/`, 다른 작업 폴더는 쓰지 말 것
 
 ### codex-critic
+- **슬롯**: reviewer
 - **용도**: 리뷰 대상 산출물(주로 claude-main 코드·설계, 또는 brief에 명시된 기존 코드·문서·소스)을 실제 repo/파일/CLI 관점에서 리뷰·비평. 실현 가능성, 비용, 테스트 커버리지, 사이드 이펙트 검토. **Codex의 주된 역할.**
 - **선행 조건**: 리뷰 대상 산출물 경로가 존재 — 보통 claude-main `result.md`, 또는 brief에 명시된 기존 코드·문서·소스
 - **결과물**: 비평 리스트, 수정 제안
@@ -100,6 +114,7 @@ decision tree로 "누구를" 고른 뒤, "어떻게 엮을지" 고른다. **단�
 - **파일 쓰기**: ❌ 직접 X. Orchestrator 경유
 
 ### gemini
+- **슬롯**: multimodal
 - **용도**: 이미지/스크린샷/다이어그램 분석, 50페이지+ 문서 스캔, 제3자 시각의 검토
 - **결과물**: 분석 텍스트, 요약
 - **호출 명령**: `_shared/backends.json`의 `gemini` 항목이 정본. 디스패처로 호출:
@@ -130,11 +145,11 @@ decision tree로 "누구를" 고른 뒤, "어떻게 엮을지" 고른다. **단�
 
 | 작업 유형 | 권장 최소 set |
 |----------|------------|
-| 문서/기획만 | claude-main |
-| 코드 구현 | claude-main |
-| 설계 후 구현 | claude-main (설계·구현 일괄) |
-| 구현 + 비평 | claude-main → codex-critic → claude-main (반영) |
-| 보조 구현 / 이미지 생성 | codex-main |
+| 문서/기획/전략만 | claude-main |
+| 설계 + 소규모 구현 | claude-main (설계·구현 일괄) |
+| 대규모 구현·테스트 | claude-main (설계) → codex-main (구현·테스트) |
+| 브라우저 자동화 / 이미지 생성 | codex-main |
+| 구현 + 비평 | 생성 워커 → codex-critic → 반영 |
 | 대용량 문서 처리 | gemini |
 | 전체 검토 | claude-main → codex-critic |
 

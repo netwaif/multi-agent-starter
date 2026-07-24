@@ -23,6 +23,8 @@ tasks/<task-name>/
 
 ### Step 1: 작업 폴더 + 필수 파일
 
+> 새 폴더가 기존 작업의 후속·핸드오프·하위 단계라면 생성 전에 `_shared/orchestrator-rules.md` §3 "새 작업 폴더 생성 게이트"를 먼저 적용한다(사용자 확인 + parent/context/메모리 연결).
+
 ```bash
 TASK=my-task-name
 ROOT=<설치한-폴더>

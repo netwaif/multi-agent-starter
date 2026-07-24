@@ -13,6 +13,14 @@
   미구현 gemini api 폴백 비활성(거짓 안전신호 제거) + INV13 신설(claude flavor).
   발견 경위: Fable5∥Sol 이중 독립 시스템 리뷰(공통 검출 C1·C3).
 
+### Changed
+- **루트↔claude 템플릿 sync 복원** — v3.3이 템플릿에만 넣은 2층 라우팅
+  (capability-profile·슬롯 트리)을 루트(유지보수자 본체)에도 승격하고, 반대로 v1.3.0
+  개편 때 템플릿에서 누락된 상세 규칙(gemini 이미지/PDF 검수 정본 경로·작업 폴더 분리
+  게이트 상세 등)을 템플릿에 복원. design-basis·learnings는 audience 분기로 sync
+  제외 명시(D 번호는 루트가 할당·공유: 2층 D9→D12, backends D10→D11 재정렬).
+  `sync_claude_template.py` check 기준 drift 0 회복.
+
 ## [3.4.0] - 2026-07-19
 
 ### Fixed
