@@ -62,9 +62,12 @@ for p in 'Pipeline' 'Fan-out/Fan-in' 'Expert Pool' 'Producer-Reviewer'; do
 done
 if [ "$miss" = 0 ]; then ok "INV8 토폴로지 4패턴"; else ng "INV8 토폴로지 4패턴"; fi
 
-# INV9 gemini 백엔드 정본 (agy + pro-high)
-if grep -q '"command": "agy"' "$BKD" && grep -q 'gemini-3.1-pro-high' "$BKD"; then
-  ok "INV9 gemini 백엔드 agy·pro-high"; else ng "INV9 gemini 백엔드 agy·pro-high"; fi
+# INV9 gemini 백엔드 정본 (agy + 실제 argv 모델 핀)
+if jq -e '.workers.gemini as $g | ($g.cli.command == "agy") and
+  ($g.model == "gemini-3.1-pro-high") and
+  (($g.cli.args_template | index("--model")) as $i |
+    ($i != null and $g.cli.args_template[$i + 1] == $g.model))' "$BKD" >/dev/null 2>&1; then
+  ok "INV9 gemini agy argv 모델 핀"; else ng "INV9 gemini agy argv 모델 핀"; fi
 
 # INV10 옛 프록시 활성호출 부재 (폐기 문맥 제외)
 if grep -rn 'mcp__gemini-pro__\|mcp__gemini__gemini_' "$RTG" "$TFD" "$INSTR" 2>/dev/null \
@@ -85,6 +88,18 @@ if command -v jq >/dev/null 2>&1; then
 else
   ng "INV12 gemini fallbacks 비활성 (jq 없음 — 디스패처 필수 의존이므로 설치 필요)"
 fi
+
+# INV13 claude-critic 비대화형 인자 + 격리 cwd + 읽기 전용 대상 경로 계약
+if jq -e '.workers["claude-critic"] as $c |
+  ($c.cli.command == "claude") and ($c.cwd_policy == "isolated_tmp") and
+  (($c.cli.args_template | index("--print")) != null) and
+  (($c.cli.args_template | index("--prompt")) == null) and
+  (($c.cli.args_template | index("--disable-slash-commands")) != null) and
+  (($c.cli.args_template | index("--add-dir")) as $d |
+    ($d != null and $c.cli.args_template[$d + 1] == "@target_repo")) and
+  (($c.cli.args_template | index("--tools")) as $i |
+    ($i != null and $c.cli.args_template[$i + 1] == "Read,Glob,Grep"))' "$BKD" >/dev/null 2>&1; then
+  ok "INV13 claude-critic --print·isolated·target-read-only"; else ng "INV13 claude-critic --print·isolated·target-read-only"; fi
 
 echo "----------------------------------------"
 echo "결과: PASS=$PASS FAIL=$FAIL"

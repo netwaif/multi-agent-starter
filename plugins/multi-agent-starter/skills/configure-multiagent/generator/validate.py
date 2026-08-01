@@ -216,10 +216,36 @@ def _backend_record_problems(rec: dict, where: str, target: Path, *, is_fallback
             p.append(f"{where}: mcp.tool 누락")
     if ct == "cli":
         cli = rec.get("cli", {})
-        if cli.get("command") not in _CLI_ALLOWLIST:
-            p.append(f"{where}: cli.command allowlist 위반({cli.get('command')})")
-        if not isinstance(cli.get("args_template"), list):
+        command = cli.get("command")
+        args = cli.get("args_template")
+        if command not in _CLI_ALLOWLIST:
+            p.append(f"{where}: cli.command allowlist 위반({command})")
+        if not isinstance(args, list):
             p.append(f"{where}: cli.args_template 배열 필수")
+        elif command == "claude" and ("--prompt" in args or not ({"--print", "-p"} & set(args))):
+            p.append(f"{where}: claude 비대화형 인자는 --print/-p 필수(--prompt 금지)")
+        elif command == "agy" and rec.get("model", "").startswith("gemini-"):
+            expected = rec["model"]
+            try:
+                model_ok = args[args.index("--model") + 1] == expected
+            except (ValueError, IndexError):
+                model_ok = False
+            if not model_ok:
+                p.append(f"{where}: agy --model이 선언 모델({expected})과 불일치")
+        if command == "claude" and isinstance(args, list):
+            model = rec.get("model")
+            if model == "host-default" and "--model" in args:
+                p.append(f"{where}: host-default는 --model 핀 없이 CLI 기본값을 사용해야 함")
+            if where == "claude-critic":
+                readonly = ("--disable-slash-commands" in args and "--tools" in args and
+                            args[args.index("--tools") + 1] == "Read,Glob,Grep")
+                if not readonly:
+                    p.append(f"{where}: 읽기 전용 도구 계약(Read,Glob,Grep) 누락")
+                isolated_target = (rec.get("cwd_policy") == "isolated_tmp" and
+                                   "--add-dir" in args and
+                                   args[args.index("--add-dir") + 1] == "@target_repo")
+                if not isolated_target:
+                    p.append(f"{where}: isolated_tmp + --add-dir @target_repo 격리 계약 누락")
     if ct == "api":
         api = rec.get("api", {})
         ref = api.get("ref", "")
@@ -236,7 +262,7 @@ def _backend_record_problems(rec: dict, where: str, target: Path, *, is_fallback
 
 
 def _gemini_policy_ok(raw: str | None) -> tuple[bool, str]:
-    """C6: gemini 워커가 cli/agy + gemini-3.1-pro-high 인지 레코드 직접 검사."""
+    """C6: gemini 워커가 cli/agy이고 pro-high를 실제 argv에 핀하는지 검사."""
     if raw is None:
         return False, "backends.json 없음"
     try:
@@ -249,6 +275,13 @@ def _gemini_policy_ok(raw: str | None) -> tuple[bool, str]:
         return False, "gemini call_type cli·command agy 아님"
     if g.get("model") != "gemini-3.1-pro-high":
         return False, f"gemini model이 pro-high 아님({g.get('model')})"
+    args = g.get("cli", {}).get("args_template", [])
+    try:
+        pinned = args[args.index("--model") + 1] == g["model"]
+    except (ValueError, IndexError):
+        pinned = False
+    if not pinned:
+        return False, "agy argv에 --model gemini-3.1-pro-high 핀 누락"
     return True, ""
 
 

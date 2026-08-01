@@ -89,7 +89,13 @@ def copy_template(template_dir: Path, target: Path, dry: bool) -> list[Path]:
         dest = target / rel
         if not dry:
             dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src, dest)
+            if src.suffix in {".sh", ".command"}:
+                # Windows checkout may expose bundled POSIX scripts as CRLF.
+                # Generated systems must remain directly executable by bash.
+                dest.write_bytes(src.read_bytes().replace(b"\r\n", b"\n"))
+                shutil.copystat(src, dest)
+            else:
+                shutil.copy2(src, dest)
         written.append(rel)
     return written
 
