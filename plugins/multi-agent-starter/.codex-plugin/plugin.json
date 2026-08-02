@@ -1,7 +1,7 @@
 {
   "name": "multi-agent-starter",
   "version": "3.5.0",
-  "description": "파일 기반 멀티에이전트 오케스트레이션 시스템 생성기. Codex/Claude에서 \"멀티 에이전트 시스템 구성해줘\"로 시스템을 대상 폴더에 결정적으로 생성 (flavor: claude | codex | antigravity).",
+  "description": "파일 기반 멀티에이전트 오케스트레이션 시스템 생성기. Codex/Claude/Hermes에서 \"멀티 에이전트 시스템 구성해줘\"로 시스템을 대상 폴더에 결정적으로 생성 (flavor: claude | codex | antigravity | hermes).",
   "author": {
     "name": "netwaif",
     "url": "https://github.com/netwaif"
@@ -22,7 +22,7 @@
   "interface": {
     "displayName": "MultiAgent Starter",
     "shortDescription": "멀티에이전트 오케스트레이션 시스템을 한 번에 구성",
-    "longDescription": "file-as-memory 멀티에이전트 시스템을 대상 폴더에 결정적으로 생성한다. 생성물의 오케스트레이터는 flavor로 선택(claude=Claude Code, codex=Codex, antigravity=Antigravity). 승인 게이트, 작업 재진입 프로토콜, 토폴로지 4패턴, 불변식 자가점검 포함.",
+    "longDescription": "file-as-memory 멀티에이전트 시스템을 대상 폴더에 결정적으로 생성한다. 생성물의 오케스트레이터는 flavor로 선택(claude=Claude Code, codex=Codex, antigravity=Antigravity, hermes=Hermes). 승인 게이트, 작업 재진입 프로토콜, 토폴로지 4패턴, 불변식 자가점검 포함.",
     "developerName": "netwaif",
     "category": "Coding",
     "capabilities": [

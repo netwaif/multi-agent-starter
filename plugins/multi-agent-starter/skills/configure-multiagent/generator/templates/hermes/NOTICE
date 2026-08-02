@@ -1,0 +1,49 @@
+NOTICE — Third-Party Attributions
+=================================
+
+Operating Principles (4원칙)
+----------------------------
+
+The "운영 원칙 (Operating Principles)" section in the orchestrator instruction
+file (CLAUDE.md / AGENTS.md) reproduces, verbatim, the behavioral guidelines
+from:
+
+  - Source:  https://github.com/multica-ai/andrej-karpathy-skills (CLAUDE.md)
+  - Author:  forrestchang (multica-ai)
+  - License: MIT — declared in the repository README ("License: MIT") and in
+    `.claude-plugin/plugin.json` (`"license": "MIT"`). The repository contains
+    no standalone LICENSE file (verified 2026-06-10).
+  - The guidelines are themselves derived from Andrej Karpathy's observations
+    on LLM coding pitfalls: https://x.com/karpathy/status/2015883857489522876
+
+Modifications in this project (marked as "adapted"):
+
+  - Layered application for the orchestrator/worker split: the full four
+    principles bind the orchestrator session only.
+  - The fixed "Worker 행동 규약" block in `_templates/worker-brief.md` is a
+    derived translation for one-shot/headless workers: principles ② and ③
+    as-is; principle ① translated to assumption-surfacing (workers have no
+    user-question channel — assumptions and mismatches are surfaced in
+    result.md Issues/Caveats); principle ④ is orchestrator-only.
+
+MIT License notice for the borrowed guidelines text:
+
+  Copyright (c) forrestchang (andrej-karpathy-skills contributors)
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in
+  all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.

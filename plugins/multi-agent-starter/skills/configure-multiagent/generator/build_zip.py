@@ -12,7 +12,7 @@ templates/·validate.py를 찾으므로 한 폴더에 모이면 그대로 동작
     ├── README.txt        # 한글 quickstart
     ├── init.py           # generator/init.py 사본
     ├── validate.py       # generator/validate.py 사본
-    ├── templates/        # claude · codex · antigravity 세 flavor
+    ├── templates/        # claude · codex · antigravity · hermes 네 flavor
     ├── run.command       # macOS 더블클릭용
     └── run.bat           # Windows 더블클릭용
 
@@ -73,6 +73,10 @@ MultiAgent 시스템 생성기 — 오프라인 ZIP 버전 (v{version})
            (워커: claude-main / codex-main / codex-critic / gemini)
 - codex  : Codex가 오케스트레이터
            (워커: codex-main / claude-critic / gemini)
+- antigravity : Antigravity가 오케스트레이터
+                (워커: claude-main / codex-main / codex-critic)
+- hermes : Hermes가 오케스트레이터
+           (워커: codex-main / claude-critic / gemini)
 
 [안전]
 - 설치 폴더에 이미 tasks/ 또는 _local/ 작업 데이터가 있으면 지우지 않고
@@ -80,7 +84,7 @@ MultiAgent 시스템 생성기 — 오프라인 ZIP 버전 (v{version})
 - 설치가 끝나면 자동으로 자가점검(validate)을 돌려 PASS/FAIL을 보여줍니다.
   FAIL이 있으면 생성 결과가 불완전한 것이니 다시 시도하세요.
 
-생성 후: 만들어진 폴더로 이동해 해당 도구(claude 또는 codex)를 실행하세요.
+생성 후: 만들어진 폴더로 이동해 해당 도구(claude, codex, agy 또는 hermes)를 실행하세요.
 """
 
 RUN_COMMAND = """\
@@ -149,7 +153,7 @@ def build(out_dir: Path, version: str) -> Path:
 
 
 def self_test(zip_path: Path) -> None:
-    """ZIP을 임시 폴더에 풀고 세 flavor를 실제 설치해 validate까지 통과하는지 확인."""
+    """ZIP을 임시 폴더에 풀고 네 flavor를 실제 설치해 validate까지 통과하는지 확인."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         with zipfile.ZipFile(zip_path) as zf:
@@ -161,7 +165,7 @@ def self_test(zip_path: Path) -> None:
         if not init_py.is_file():
             sys.exit(f"[self-test FAIL] ZIP 안에 init.py 없음: {init_py}")
 
-        for flavor in ("claude", "codex", "antigravity"):
+        for flavor in ("claude", "codex", "antigravity", "hermes"):
             target = tmp_path / f"out-{flavor}"
             rc = subprocess.run(
                 [sys.executable, str(init_py), "--flavor", flavor,
@@ -191,7 +195,7 @@ def main() -> None:
     print(f"  빌드 완료: {zip_path}  ({size_kb:.1f} KB)")
 
     if not args.no_self_test:
-        print("  자가검증(추출 → 세 flavor 설치 → validate)...")
+        print("  자가검증(추출 → 네 flavor 설치 → validate)...")
         self_test(zip_path)
         print("  자가검증 통과.")
 

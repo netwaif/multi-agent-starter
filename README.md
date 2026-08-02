@@ -4,7 +4,7 @@
 
 # multi-agent-starter
 
-파일 기반 멀티에이전트 오케스트레이션 시스템 **생성기**. Claude Code · Codex · Antigravity
+파일 기반 멀티에이전트 오케스트레이션 시스템 **생성기**. Claude Code · Codex · Antigravity · Hermes
 어느 쪽이든 오케스트레이터로 두는 file-as-memory 멀티에이전트 시스템을 원하는 폴더에 결정적으로 만든다.
 **어느 벤더·모델에도 매이지 않는 하네스**가 목표 — 워커는 역할이고, 모델·연결 방식은 교체 가능한 설정이다.
 
@@ -53,7 +53,7 @@ Claude Code·Codex 모두 **동일한 플러그인 흐름**이다:
 ### 직접(개발자) — 생성기 호출
 
 ```bash
-python3 plugins/multi-agent-starter/skills/configure-multiagent/generator/init.py --flavor <claude|codex|antigravity> --target "<대상폴더>" --yes
+python3 plugins/multi-agent-starter/skills/configure-multiagent/generator/init.py --flavor <claude|codex|antigravity|hermes> --target "<대상폴더>" --yes
 ```
 
 설치가 끝나면 자동으로 `validate.py`가 돌며 PASS/FAIL을 보여준다.
@@ -67,7 +67,7 @@ python3 plugins/multi-agent-starter/skills/configure-multiagent/generator/init.p
 ```
 
 Orchestrator가 작업 폴더를 만들고 → 워커 승인을 요청한 뒤 → 진행한다.
-운영 규칙 전문은 생성된 폴더의 `CLAUDE.md`(claude) / `AGENTS.md`(codex·antigravity) 참조.
+운영 규칙 전문은 생성된 폴더의 `CLAUDE.md`(claude) / `AGENTS.md`(codex·antigravity·hermes) 참조.
 
 ## v1 → v2 마이그레이션 (기존 clone 사용자)
 
@@ -127,22 +127,22 @@ multi-agent-starter/                 # 마켓플레이스 카탈로그 (루트)
 │               ├── init.py         # 결정적 생성기 (flavor·대상·tasks 보존·dry-run·guard)
 │               ├── validate.py     # flavor별 불변식 자가점검
 │               ├── build_zip.py    # 자립형 ZIP 빌더 (재현가능)
-│               └── templates/{claude,codex,antigravity}/   # 세 flavor 정본
+│               └── templates/{claude,codex,antigravity,hermes}/   # 네 flavor 정본
 ├── tests/                          # 오프라인 결정적 회귀 테스트 (run.sh)
-└── docs/ACCEPTANCE.md              # 3호스트 수용 체크리스트 + 테스트 시나리오
+└── docs/ACCEPTANCE.md              # 4호스트 수용 체크리스트 + 테스트 시나리오
 ```
 
-> **generator가 스킬 안에 있는 이유**: Antigravity(agy)는 플러그인 설치 시 인식하는 컴포넌트(skills/agents/…)만 복사하고 임의 폴더(generator/)는 버린다. 스킬 폴더 안에 두면 스킬과 함께 복사돼 Claude·Codex·Antigravity 모두에서 "구성해줘"가 동작한다.
+> **generator가 스킬 안에 있는 이유**: Antigravity(agy)는 플러그인 설치 시 인식하는 컴포넌트(skills/agents/…)만 복사하고 임의 폴더(generator/)는 버린다. 스킬 폴더 안에 두면 스킬과 함께 복사돼 Claude·Codex·Antigravity·Hermes 모두에서 "구성해줘"가 동작한다.
 
 > **플러그인이 하위 폴더에 있는 이유**: Codex는 로컬 마켓에서 플러그인 source가 repo 루트(`"./"`)인 걸 거부한다([openai/codex#17066](https://github.com/openai/codex/issues/17066)). 그래서 루트는 마켓 카탈로그만 두고 플러그인은 `plugins/multi-agent-starter/`에 둔다 — Claude·Codex 양쪽에서 설치된다.
 
 ## 품질 — 테스트 & 수용 검증
 
 - **자동 회귀 테스트**(외부·유료 모델 호출 0): `bash tests/run.sh`
-  - 3 flavor 생성→`validate` 전부 PASS, update 모드 사용자 데이터 보존,
+  - 4 flavor 생성→`validate` 전부 PASS, update 모드 사용자 데이터 보존,
     디스패처 폴백·타임아웃·입력 가드(가짜 백엔드 주입). 매 빌드 안전 실행.
-- **수용 체크리스트**: [`docs/ACCEPTANCE.md`](./docs/ACCEPTANCE.md) — claude·codex·antigravity
-  세 호스트별 설치→구조→스모크→기능→안전 4층 검증 + 사인오프 표. 배포 전 호스트별로 채운다.
+- **수용 체크리스트**: [`docs/ACCEPTANCE.md`](./docs/ACCEPTANCE.md) — claude·codex·antigravity·hermes
+  네 호스트별 설치→구조→스모크→기능→안전 4층 검증 + 사인오프 표. 배포 전 호스트별로 채운다.
 
 ## 알려진 이슈
 
