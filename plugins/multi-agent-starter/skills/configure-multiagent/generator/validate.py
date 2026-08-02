@@ -37,6 +37,12 @@ FLAVOR = {
         "forbidden_worker": "gemini-critic",   # gemini 오케스트레이터 자기검수 금지
         "extra_files": [],
     },
+    "hermes": {
+        "instruction": "AGENTS.md",
+        "main_worker": "claude-critic",
+        "forbidden_worker": "hermes-critic",
+        "extra_files": [],
+    },
 }
 
 TOPOLOGY = ("Pipeline", "Fan-out/Fan-in", "Expert Pool", "Producer-Reviewer")
@@ -307,10 +313,20 @@ def _backends_problems(raw: str, flavor: str, target: Path) -> list[str]:
     return p
 
 
+def _repo_layout() -> tuple[Path, Path]:
+    """Find catalog/plugin roots without assuming the ZIP extraction depth."""
+    for catalog in (SCRIPT_DIR, *SCRIPT_DIR.parents):
+        plugin = catalog / "plugins" / "multi-agent-starter"
+        if (catalog / ".claude-plugin" / "marketplace.json").is_file() and plugin.is_dir():
+            return plugin, catalog
+    # Flat ZIP installs never run --repo-check. Keep target validation usable even
+    # when the archive is extracted directly under a shallow path such as C:\Temp.
+    return SCRIPT_DIR, SCRIPT_DIR
+
+
 # 분리 레이아웃(#17066 대응): 플러그인 본체는 plugins/<name>/ 하위, 마켓 카탈로그는
 # git 루트(.claude-plugin/marketplace.json + .agents/plugins/marketplace.json)에 있다.
-PLUGIN_ROOT = SCRIPT_DIR.parents[2]   # generator → configure-multiagent → skills → 플러그인 루트
-CATALOG_ROOT = SCRIPT_DIR.parents[4]  # git 루트 (카탈로그·front-page)
+PLUGIN_ROOT, CATALOG_ROOT = _repo_layout()
 
 
 def _desc_text(rel: str, data: dict) -> str:

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Hermes를 네 번째 정식 generator flavor로 추가했다. Hermes용 `AGENTS.md`, 백엔드 식별자, 문서, ZIP 자가검증 및 전체 flavor 회귀 테스트를 포함한다.
+
 이 파일은 multi-agent-starter **패키지/배포**의 버전 이력이다.
 **설치된 시스템의 동작** 변경 이력은 생성된 폴더의 `CHANGELOG.md`
 (정본: `generator/templates/{claude,codex}/CHANGELOG.md`)를 참조한다.

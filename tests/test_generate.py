@@ -17,7 +17,12 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 GEN = REPO / "plugins" / "multi-agent-starter" / "skills" / "configure-multiagent" / "generator"
 FLAVORS = sorted(p.name for p in (GEN / "templates").iterdir() if p.is_dir())
-INSTRUCTION_FILE = {"claude": "CLAUDE.md", "codex": "AGENTS.md", "antigravity": "AGENTS.md"}
+INSTRUCTION_FILE = {
+    "claude": "CLAUDE.md",
+    "codex": "AGENTS.md",
+    "antigravity": "AGENTS.md",
+    "hermes": "AGENTS.md",
+}
 KNOT_START, KNOT_END = "<!-- knot:start -->", "<!-- knot:end -->"
 
 
@@ -33,7 +38,8 @@ def init(tgt: Path, f: str) -> subprocess.CompletedProcess:
 def _guard_artifact(tgt: Path, f: str) -> Path:
     """flavor별 가드 배선 산출물 경로(부재 단언용). antigravity는 산출물 없음(None)."""
     return {"claude": tgt / ".claude" / "settings.json",
-            "codex": tgt / "_shared" / "guard" / "codex_goal_watch.mjs"}.get(f)
+            "codex": tgt / "_shared" / "guard" / "codex_goal_watch.mjs",
+            "hermes": tgt / "_shared" / "guard" / "codex_goal_watch.mjs"}.get(f)
 
 
 def validate_all_pass() -> int:

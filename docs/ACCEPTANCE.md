@@ -1,6 +1,6 @@
 # MultiAgent v2 — 수용(Acceptance) 체크리스트 & 테스트 시나리오
 
-> 대상: 배포되는 v2 시스템을 **claude / codex / antigravity** 세 호스트에서 검증.
+> 대상: 배포되는 v2 시스템을 **claude / codex / antigravity / hermes** 네 호스트에서 검증.
 > 자동화 가능한 항목은 `tests/`로 구현되어 있다 (`bash tests/run.sh`). 나머지는 수동.
 
 ---
@@ -18,13 +18,13 @@
 | **L4 안전** | 승인 게이트·write_scope·디스패처 인젝션·timeout이 *실제로 막는지* | 자동 일부 + 수동 | **나쁜 입력 차단** |
 
 **판정 기준**: 한 호스트에서 L1~L4를 모두 PASS = 그 호스트 배포 승인.
-세 호스트 모두 승인 = v2.0.0 릴리스 가능.
+네 호스트 모두 승인 = 릴리스 가능.
 
 ### 자동화 매핑 (`tests/run.sh`)
 
 | 테스트 | 커버 항목 | 종류 |
 |--------|-----------|------|
-| `tests/test_generate.py` | A2 / L1 — 3 flavor 생성 후 validate 전부 PASS | 자동·오프라인 |
+| `tests/test_generate.py` | A2 / L1 — 4 flavor 생성 후 validate 전부 PASS | 자동·오프라인 |
 | `tests/test_update_preserve.py` | S9 / A1 — update 모드 사용자 데이터 보존 | 자동·오프라인 |
 | `tests/dispatcher/test_fallback.sh` | S5 — primary 실패 → fallback 성공, `fallback_used=true` | 자동·오프라인(가짜 bin) |
 | `tests/dispatcher/test_timeout.sh` | S6 — timeout 초과 → `status=timeout`, `exit_code=124` | 자동·오프라인 |
@@ -40,7 +40,7 @@
 
 ### A0. 사전 조건 (공통)
 - [ ] `python3`, `jq` 사용 가능
-- [ ] 대상 호스트 설치됨 (Claude Code / Codex / Antigravity IDE+`agy`)
+- [ ] 대상 호스트 설치됨 (Claude Code / Codex / Antigravity IDE+`agy` / Hermes)
 - [ ] 워커 백엔드 도달 가능 (flavor별, 아래)
 
 | flavor | 오케스트레이터 | 필요한 워커 백엔드 |
@@ -48,6 +48,7 @@
 | claude | Claude Code 세션 | `codex` MCP(`mcp__codex`), `agy`(PATH, 모델=gemini-3.1-pro-high), (선택) `GEMINI_API_KEY` |
 | codex | Codex 세션 | `claude` CLI(PATH), `agy`(PATH, pro-high) |
 | antigravity | `agy`/Antigravity IDE (Gemini 3.1 Pro High) | `claude` CLI, `codex` CLI (PATH) |
+| hermes | Hermes Agent | `codex` CLI, `claude` CLI, `agy`(PATH, pro-high) |
 
 > 모델 정책: `agy`는 모델이 전역/계정 단위(`/model`). 검증 전 **pro-high로 설정** 확인.
 
@@ -100,7 +101,7 @@
 | **S7** | 컨텍스트 초과 | `context.md` `wc -m` > 한도 | 초과분 log로 archive, 스냅샷만 유지 | L3 | 수동 |
 | **S8** | 재진입 | `/compact` 후 새 세션 | task/log 읽고 정확히 이어감 | L3 | 수동 |
 | **S9** | update 모드 보존 | 기존 `tasks/`·`_local/` 있는 폴더에 재설치 | 사용자 데이터 무손실, 시스템 파일만 갱신 | L3 | **자동** |
-| **S10** | 교차 호스트 매트릭스 | S1+S2를 3 flavor 전부 | 각 flavor 동일하게 통과 | L1~L4 | 부분 |
+| **S10** | 교차 호스트 매트릭스 | S1+S2를 4 flavor 전부 | 각 flavor 동일하게 통과 | L1~L4 | 부분 |
 
 > 우선순위: **S3·S6·S5(안전) > S1·S8·S9(핵심) > S2·S4·S7 > S10(교차)**.
 
@@ -119,10 +120,11 @@
 | claude | ✅ | ✅ | ☐ | ⚠️자동만 | gen ✅ / plugin ☐ / zip ☐ | ☐ |
 | codex | ✅ | ✅ | ☐ | ⚠️자동만 | gen ✅ / plugin ☐ / zip ☐ | ☐ |
 | antigravity | ✅ | ✅ | ☐ | ⚠️자동만 | gen ✅ / plugin ☐ / zip ☐ | ☐ |
+| hermes | ✅ | ☐ | ☐ | ⚠️자동만 | gen ✅ / plugin 해당 없음 / zip ☐ | ☐ |
 
 > **2026-06-03 검증 기록** (로컬, generator 경로):
-> - **L1 구조**: 3 flavor 모두 `validate` PASS(claude 10 / codex 11 / antigravity 12), `tests/run.sh` ALL PASS.
-> - **L2 스모크**: 3 flavor 모두 생성 폴더를 해당 호스트에서 열어 "규칙 요약" 시 지침 자동 로드 + 승인게이트·log태그·컨텍스트한도·워커풀·외부쓰기4조건을 정확히 답함.
+> - **L1 구조**: 4 flavor 모두 `validate` PASS, `tests/run.sh` ALL PASS.
+> - **L2 스모크**: 4 flavor 모두 생성 폴더를 해당 호스트에서 열어 "규칙 요약" 시 지침 자동 로드 + 승인게이트·log태그·컨텍스트한도·워커풀·외부쓰기4조건을 정확히 답함.
 >   - claude: `CLAUDE.md`, codex 워커 = **MCP**(`mcp__codex`, 프로젝트 `.mcp.json` 동봉).
 >   - codex: `AGENTS.md`, 워커 = claude-critic·gemini (codex-critic 비활성).
 >   - antigravity: `AGENTS.md`, codex 워커 = **CLI**(`codex exec`). **실증**: Antigravity는 프로젝트-로컬 `.mcp.json`을 안 읽고 전역 `~/.gemini/antigravity-ide/mcp_config.json`만 봄 → CLI 기본이 유일한 zero-config 경로(설계 확정). codex MCP 전환은 그 전역 파일에 등록하는 1회성 업그레이드.
