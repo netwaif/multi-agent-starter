@@ -12,8 +12,8 @@ set -euo pipefail
 _TMPS=()
 cleanup() { local p; for p in "${_TMPS[@]:-}"; do [ -n "$p" ] && rm -rf -- "$p"; done; return 0; }  # 항상 0: EXIT trap이 종료코드 덮어쓰지 않도록
 trap cleanup EXIT INT TERM
-mktmp()  { local t; t="$(mktemp)";    _TMPS+=("$t"); printf '%s' "$t"; }
-mktmpd() { local t; t="$(mktemp -d)"; _TMPS+=("$t"); printf '%s' "$t"; }
+mktmp()  { TMP_PATH="$(mktemp)";    _TMPS+=("$TMP_PATH"); }
+mktmpd() { TMP_PATH="$(mktemp -d)"; _TMPS+=("$TMP_PATH"); }
 
 die() { echo "call_worker: $1" >&2; exit "${2:-1}"; }
 
@@ -51,7 +51,7 @@ BRIEF="$(cd "$(dirname -- "$BRIEF")" && pwd)/$(basename -- "$BRIEF")"
 if [ -n "$PAYLOAD" ]; then
   case "$PAYLOAD" in *..*) die "payload 경로에 '..' 금지" 6;; esac
   [ -f "$PAYLOAD" ] || die "payload 파일 없음: $PAYLOAD" 6
-  MERGED="$(mktmp)"
+  mktmp; MERGED="$TMP_PATH"
   { cat -- "$BRIEF"
     printf '\n\n---\n\n# 동봉 자료 (payload — orchestrator가 결합. 이 자료만 사용하고 파일 열지 말 것)\n\n'
     cat -- "$PAYLOAD"
@@ -62,9 +62,14 @@ if [ "$PREVIEW" = 1 ]; then cat -- "$BRIEF"; exit 0; fi
 
 rec="$(jq -c --arg r "$ROLE" '.workers[$r] // empty' "$BACKENDS")"
 [ -n "$rec" ] || die "role 미정의: $ROLE" 2
+if jq -e '[.cli.args_template[]?, .fallbacks[]?.cli.args_template[]?] | index("@target_repo") != null' <<<"$rec" >/dev/null \
+   && [ -z "${TARGET_REPO:-}" ]; then
+  die "@target_repo 사용 시 TARGET_REPO 환경변수가 필요합니다" 6
+fi
 
 # 폴백 가용성 사전 점검(경고만): primary가 죽고 나서야 폴백 불가를 아는 것을 방지
 while IFS= read -r _fe; do
+  _fe="${_fe%$'\r'}"
   [ -n "$_fe" ] && [ -z "${!_fe:-}" ] && \
     echo "call_worker: 경고 — 폴백 필수 env 미설정: $_fe (primary 실패 시 폴백 불가)" >&2
 done < <(jq -r '.fallbacks[]?.api.required_env[]? // empty' <<<"$rec")
@@ -73,6 +78,7 @@ redact() { sed -E 's/[A-Za-z0-9_-]{32,}/[REDACTED]/g'; }
 
 # 단일 backend 실행 → envelope(JSON)을 stdout, exit code 반환
 run_backend() {
+  trap cleanup EXIT INT TERM  # command substitution subshell에서도 임시자원 정리 보장
   local spec="$1" ctype bmode tmo cwdp model wd out err errd rc start dur
   ctype="$(jq -r '.call_type' <<<"$spec")"
   model="$(jq -r '.model // "?"' <<<"$spec")"
@@ -86,7 +92,7 @@ run_backend() {
   cwdp="$(jq -r '.cwd_policy // "repo_root"' <<<"$spec")"
 
   case "$cwdp" in
-    isolated_tmp) wd="$(mktmpd)";;
+    isolated_tmp) mktmpd; wd="$TMP_PATH";;
     target)       wd="${TARGET_REPO:-$ROOT}";;
     *)            wd="$ROOT";;
   esac
@@ -99,9 +105,14 @@ run_backend() {
     cmd+=("$command_bin")
     args_json="$(jq -r '.cli.args_template[]' <<<"$spec")"   # jq 실패 시 set -e 트리거
     while IFS= read -r a; do
+      a="${a%$'\r'}"
       case "$a" in
         "@brief")         cmd+=("$BRIEF");;
         "@brief_content") cmd+=("$(cat -- "$BRIEF")");;
+        "@target_repo")
+          [ -n "${TARGET_REPO:-}" ] || die "@target_repo 사용 시 TARGET_REPO 환경변수가 필요합니다" 6
+          cmd+=("$TARGET_REPO")
+          ;;
         *)                cmd+=("$a");;
       esac
     done <<<"$args_json"
@@ -125,6 +136,7 @@ run_backend() {
     case "$ref" in *..*) die "api.ref에 '..' 금지" 7;; esac
     [ -f "$ROOT/_shared/$ref" ] || die "api 스크립트 없음: $ref" 4
     while IFS= read -r reqenv; do
+      reqenv="${reqenv%$'\r'}"
       [ -n "$reqenv" ] || continue
       if [ -z "${!reqenv:-}" ]; then
         # die 대신 에러 envelope 반환: 폴백 체인에서 실패 사유가 최종 envelope에 남도록
@@ -140,7 +152,7 @@ run_backend() {
     [ "$brief_pass" = "stdin" ] && bmode="stdin"
   fi
 
-  out="$(mktmp)"; err="$(mktmp)"; errd="$(mktmp)"
+  mktmp; out="$TMP_PATH"; mktmp; err="$TMP_PATH"; mktmp; errd="$TMP_PATH"
   start=$(date +%s)
   rc=0
   (

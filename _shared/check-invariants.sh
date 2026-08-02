@@ -58,9 +58,12 @@ core_checks() {
   if grep -qiE 'worktree|백그라운드|background session' "$ORC"; then
     ok "INV8 worktree/백그라운드 금지 규칙"; else ng "INV8 worktree/백그라운드 금지 규칙"; fi
 
-  # INV9 gemini 백엔드 정본 (agy + pro-high)
-  if grep -q '"command": "agy"' "$BKD" && grep -q 'gemini-3.1-pro-high' "$BKD"; then
-    ok "INV9 gemini 백엔드 agy·pro-high"; else ng "INV9 gemini 백엔드 agy·pro-high"; fi
+  # INV9 gemini 백엔드 정본 (agy + 실제 argv 모델 핀)
+  if jq -e '.workers.gemini as $g | ($g.cli.command == "agy") and
+    ($g.model == "gemini-3.1-pro-high") and
+    (($g.cli.args_template | index("--model")) as $i |
+      ($i != null and $g.cli.args_template[$i + 1] == $g.model))' "$BKD" >/dev/null 2>&1; then
+    ok "INV9 gemini agy argv 모델 핀"; else ng "INV9 gemini agy argv 모델 핀"; fi
 
   # INV10 폐기 브리지 활성 호출 부재
   if grep -q 'mcp__gemini__gemini_' "$RTG" "$TFD" "$INSTR"; then

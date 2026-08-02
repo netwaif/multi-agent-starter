@@ -13,6 +13,7 @@
 # Logs / temp
 *.log
 *.tmp
+*.multiagent-bak
 
 # 작업 데이터 — 사용자 사적 자료, git 추적 안 함 (폴더 구조 유지를 위해 .gitkeep만 추적)
 tasks/*

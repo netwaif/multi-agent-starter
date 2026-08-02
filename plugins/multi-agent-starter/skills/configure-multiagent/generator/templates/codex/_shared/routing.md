@@ -84,7 +84,7 @@ write_scope: none | tasks-only | "src/**, tests/**"
 - **용도**: Codex Orchestrator 또는 `codex-main` 산출물의 독립 리뷰·비평. 실현 가능성, 테스트 커버리지, 사이드 이펙트, 누락 요구사항을 adversarial하게 점검한다.
 - **선행 조건**: 리뷰 대상 산출물 경로가 존재해야 한다. 대상은 `codex-main result.md`, Orchestrator 작성 문서, 기존 코드·문서·소스 등 brief에 명시된 파일일 수 있다.
 - **결과물**: 중요도별 비평 리스트, 수정 제안, 수락/보류 판단 근거.
-- **호출 방식**: 승인된 Claude CLI/MCP/agent bridge만 사용한다. 실제 호출 전 도구·모델·비용 가능성을 사용자에게 알리고 승인받는다.
+- **호출 방식**: 승인된 Claude CLI/MCP/agent bridge만 사용한다. 디스패처 호출 시 `TARGET_REPO`를 절대경로로 전달하고 `cwd_policy: isolated_tmp`에서 실행한다. 대상 저장소는 `--add-dir @target_repo`로만 노출하며, CLI argv의 `--tools Read,Glob,Grep`와 slash-command 비활성으로 읽기 전용을 강제한다. Claude 시작 플러그인이 cwd에 상태 파일을 만들더라도 임시 폴더에만 남고 호출 종료 시 제거된다. 실제 호출 전 도구·모델·비용 가능성을 사용자에게 알리고 승인받는다.
 - **쓰기 권한**: 없음. Orchestrator가 응답을 `result.md`에 기록한다.
 - **brief 필수 필드**: `target_repo` 또는 리뷰 대상 경로, `write_scope: none`, "비평 모드" 명시.
 
@@ -102,8 +102,8 @@ write_scope: none | tasks-only | "src/**, tests/**"
 
 - **Codex Orchestrator**: 현재 Codex 세션의 모델과 reasoning 설정을 따른다.
 - **codex-main**: 별도 Codex worker를 쓸 때도 기본적으로 현재 Codex 환경의 설정을 상속한다. repo 문서에 버전 문자열을 핀하지 않는다.
-- **claude-critic**: 승인된 Claude 도구의 현재 기본/별칭 모델을 사용한다. 버전 문자열은 환경 소유 사실이므로 repo에 핀하지 않는다.
-- **gemini**: 백엔드 = Antigravity `agy` CLI(`backends.json` 정본), 기본 `gemini-3.1-pro-high`(agy에선 정상 — 옛 프록시 400은 비해당), 빠른 경로 `gemini-3-flash`/`pro-low`. agy 모델은 전역·계정단위(`/model`)라 gemini 전용 전역을 pro-high로 둔다. 옛 `mcp__gemini-pro__*` 브리지 폐기.
+- **claude-critic**: `model: host-default`는 구체 모델 선언이 아니라 Claude CLI 계정 기본값을 뜻하며 `--model`을 전달하지 않는다. 버전 문자열은 repo에 핀하지 않는다.
+- **gemini**: 백엔드 = Antigravity `agy` CLI(`backends.json` 정본), 기본 `gemini-3.1-pro-high`를 `--model`로 per-call 고정한다. 옛 프록시 브리지는 폐기한다.
 
 ## 최소 Worker Set
 

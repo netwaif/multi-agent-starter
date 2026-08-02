@@ -93,6 +93,8 @@
       "cli": {
         "command": "agy",
         "args_template": [
+          "--model",
+          "gemini-3.1-pro-high",
           "--prompt",
           "@brief_content"
         ]
