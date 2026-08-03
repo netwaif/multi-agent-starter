@@ -5,11 +5,14 @@ set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 fail=0
 
+# Windows 네이티브 python3가 /d/... MSYS 경로를 인식하지 못하므로 Windows 경로로 변환
+_to_native() { command -v cygpath >/dev/null 2>&1 && cygpath -w "$1" 2>/dev/null || echo "$1"; }
+
 echo "== python tests =="
 for t in "$HERE"/test_*.py; do
   [ -f "$t" ] || continue
   echo "-- $(basename "$t")"
-  python3 "$t" || fail=1
+  python3 "$(_to_native "$t")" || fail=1
 done
 
 echo

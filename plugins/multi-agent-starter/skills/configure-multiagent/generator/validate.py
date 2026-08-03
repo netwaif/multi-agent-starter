@@ -197,6 +197,12 @@ _CAPTURE = {"orchestrator", "tool-return", "stdout", "envelope"}
 _BRIEF_MODES = {"path", "content", "stdin", "file-arg"}
 _CLI_ALLOWLIST = {"agy", "codex", "claude"}
 
+def _is_allowed_command(command: str) -> bool:
+    """allowlist 허용 — 순수 이름 또는 */codex.exe|*/codex 절대경로 (Windows 환경)"""
+    if command in _CLI_ALLOWLIST:
+        return True
+    return command.endswith("/codex.exe") or command.endswith("/codex") or command.endswith("\\codex.exe") or command.endswith("\\codex")
+
 
 def _backend_record_problems(rec: dict, where: str, target: Path, *, is_fallback: bool) -> list[str]:
     p: list[str] = []
@@ -224,7 +230,7 @@ def _backend_record_problems(rec: dict, where: str, target: Path, *, is_fallback
         cli = rec.get("cli", {})
         command = cli.get("command")
         args = cli.get("args_template")
-        if command not in _CLI_ALLOWLIST:
+        if not _is_allowed_command(command):
             p.append(f"{where}: cli.command allowlist 위반({command})")
         if not isinstance(args, list):
             p.append(f"{where}: cli.args_template 배열 필수")

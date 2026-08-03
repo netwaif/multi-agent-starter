@@ -43,7 +43,8 @@
             "args_template": [
               "exec",
               "--sandbox",
-              "workspace-write",
+              "danger-full-access",
+              "--skip-git-repo-check",
               "-"
             ]
           }
@@ -80,6 +81,7 @@
               "exec",
               "--sandbox",
               "read-only",
+              "--skip-git-repo-check",
               "-"
             ]
           }
