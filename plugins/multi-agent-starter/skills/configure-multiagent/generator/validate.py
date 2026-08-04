@@ -37,6 +37,12 @@ FLAVOR = {
         "forbidden_worker": "gemini-critic",   # gemini 오케스트레이터 자기검수 금지
         "extra_files": [],
     },
+    "hermes": {
+        "instruction": "AGENTS.md",
+        "main_worker": "claude-critic",
+        "forbidden_worker": "hermes-critic",
+        "extra_files": [],
+    },
 }
 
 TOPOLOGY = ("Pipeline", "Fan-out/Fan-in", "Expert Pool", "Producer-Reviewer")
@@ -191,6 +197,12 @@ _CAPTURE = {"orchestrator", "tool-return", "stdout", "envelope"}
 _BRIEF_MODES = {"path", "content", "stdin", "file-arg"}
 _CLI_ALLOWLIST = {"agy", "codex", "claude"}
 
+def _is_allowed_command(command: str) -> bool:
+    """allowlist 허용 — 순수 이름 또는 */codex.exe|*/codex 절대경로 (Windows 환경)"""
+    if command in _CLI_ALLOWLIST:
+        return True
+    return command.endswith("/codex.exe") or command.endswith("/codex") or command.endswith("\\codex.exe") or command.endswith("\\codex")
+
 
 def _backend_record_problems(rec: dict, where: str, target: Path, *, is_fallback: bool) -> list[str]:
     p: list[str] = []
@@ -216,10 +228,36 @@ def _backend_record_problems(rec: dict, where: str, target: Path, *, is_fallback
             p.append(f"{where}: mcp.tool 누락")
     if ct == "cli":
         cli = rec.get("cli", {})
-        if cli.get("command") not in _CLI_ALLOWLIST:
-            p.append(f"{where}: cli.command allowlist 위반({cli.get('command')})")
-        if not isinstance(cli.get("args_template"), list):
+        command = cli.get("command")
+        args = cli.get("args_template")
+        if not _is_allowed_command(command):
+            p.append(f"{where}: cli.command allowlist 위반({command})")
+        if not isinstance(args, list):
             p.append(f"{where}: cli.args_template 배열 필수")
+        elif command == "claude" and ("--prompt" in args or not ({"--print", "-p"} & set(args))):
+            p.append(f"{where}: claude 비대화형 인자는 --print/-p 필수(--prompt 금지)")
+        elif command == "agy" and rec.get("model", "").startswith("gemini-"):
+            expected = rec["model"]
+            try:
+                model_ok = args[args.index("--model") + 1] == expected
+            except (ValueError, IndexError):
+                model_ok = False
+            if not model_ok:
+                p.append(f"{where}: agy --model이 선언 모델({expected})과 불일치")
+        if command == "claude" and isinstance(args, list):
+            model = rec.get("model")
+            if model == "host-default" and "--model" in args:
+                p.append(f"{where}: host-default는 --model 핀 없이 CLI 기본값을 사용해야 함")
+            if where == "claude-critic":
+                readonly = ("--disable-slash-commands" in args and "--tools" in args and
+                            args[args.index("--tools") + 1] == "Read,Glob,Grep")
+                if not readonly:
+                    p.append(f"{where}: 읽기 전용 도구 계약(Read,Glob,Grep) 누락")
+                isolated_target = (rec.get("cwd_policy") == "isolated_tmp" and
+                                   "--add-dir" in args and
+                                   args[args.index("--add-dir") + 1] == "@target_repo")
+                if not isolated_target:
+                    p.append(f"{where}: isolated_tmp + --add-dir @target_repo 격리 계약 누락")
     if ct == "api":
         api = rec.get("api", {})
         ref = api.get("ref", "")
@@ -236,7 +274,7 @@ def _backend_record_problems(rec: dict, where: str, target: Path, *, is_fallback
 
 
 def _gemini_policy_ok(raw: str | None) -> tuple[bool, str]:
-    """C6: gemini 워커가 cli/agy + gemini-3.1-pro-high 인지 레코드 직접 검사."""
+    """C6: gemini 워커가 cli/agy이고 pro-high를 실제 argv에 핀하는지 검사."""
     if raw is None:
         return False, "backends.json 없음"
     try:
@@ -249,6 +287,13 @@ def _gemini_policy_ok(raw: str | None) -> tuple[bool, str]:
         return False, "gemini call_type cli·command agy 아님"
     if g.get("model") != "gemini-3.1-pro-high":
         return False, f"gemini model이 pro-high 아님({g.get('model')})"
+    args = g.get("cli", {}).get("args_template", [])
+    try:
+        pinned = args[args.index("--model") + 1] == g["model"]
+    except (ValueError, IndexError):
+        pinned = False
+    if not pinned:
+        return False, "agy argv에 --model gemini-3.1-pro-high 핀 누락"
     return True, ""
 
 
@@ -274,10 +319,20 @@ def _backends_problems(raw: str, flavor: str, target: Path) -> list[str]:
     return p
 
 
+def _repo_layout() -> tuple[Path, Path]:
+    """Find catalog/plugin roots without assuming the ZIP extraction depth."""
+    for catalog in (SCRIPT_DIR, *SCRIPT_DIR.parents):
+        plugin = catalog / "plugins" / "multi-agent-starter"
+        if (catalog / ".claude-plugin" / "marketplace.json").is_file() and plugin.is_dir():
+            return plugin, catalog
+    # Flat ZIP installs never run --repo-check. Keep target validation usable even
+    # when the archive is extracted directly under a shallow path such as C:\Temp.
+    return SCRIPT_DIR, SCRIPT_DIR
+
+
 # 분리 레이아웃(#17066 대응): 플러그인 본체는 plugins/<name>/ 하위, 마켓 카탈로그는
 # git 루트(.claude-plugin/marketplace.json + .agents/plugins/marketplace.json)에 있다.
-PLUGIN_ROOT = SCRIPT_DIR.parents[2]   # generator → configure-multiagent → skills → 플러그인 루트
-CATALOG_ROOT = SCRIPT_DIR.parents[4]  # git 루트 (카탈로그·front-page)
+PLUGIN_ROOT, CATALOG_ROOT = _repo_layout()
 
 
 def _desc_text(rel: str, data: dict) -> str:

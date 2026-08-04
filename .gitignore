@@ -30,3 +30,5 @@ _local/*
 dist/
 __pycache__/
 # <<< repo-infra-only <<<
+docs/dashboard-ui-plan.md
+docs/sqm-data-structure.md

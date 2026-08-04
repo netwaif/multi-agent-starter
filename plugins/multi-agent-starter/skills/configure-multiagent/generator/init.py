@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """MultiAgent 시스템 생성기 — 결정적(deterministic) 스캐폴더.
 
-flavor 템플릿(claude | codex | antigravity)을 대상 폴더에 복사한다.
+flavor 템플릿(claude | codex | antigravity | hermes)을 대상 폴더에 복사한다.
 - 결정적: 번들된 템플릿 파일을 그대로 복사. LLM 자유작문 없음 → 불변식 보장.
 - 안전: 기존 tasks/·_local/ 사용자 데이터를 절대 지우지 않음(update 모드 보존).
   지침파일(CLAUDE.md/AGENTS.md)은 덮어쓰기 전 .multiagent-bak 백업 + loadout store 블록 재부착.
@@ -23,12 +23,17 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = SCRIPT_DIR / "templates"
-FLAVORS = ("claude", "codex", "antigravity")
+FLAVORS = ("claude", "codex", "antigravity", "hermes")
 # 사용자 데이터 디렉토리 — 내용물은 절대 덮어쓰거나 지우지 않는다(.gitkeep만 보장).
 PRESERVE_DIRS = ("tasks", "_local")
 
 # flavor별 지침파일(에이전트가 자동 로드) — validate.py FLAVOR['instruction']과 일치해야.
-INSTRUCTION_FILE = {"claude": "CLAUDE.md", "codex": "AGENTS.md", "antigravity": "AGENTS.md"}
+INSTRUCTION_FILE = {
+    "claude": "CLAUDE.md",
+    "codex": "AGENTS.md",
+    "antigravity": "AGENTS.md",
+    "hermes": "AGENTS.md",
+}
 # loadout store(github.com/netwaif/loadout)가 지침파일에 심는 조각 블록 — update 시 보존 대상.
 STORE_BLOCK_RE = re.compile(r"<!-- store:([\w-]+):start -->.*?<!-- store:\1:end -->", re.S)
 # knot·요금가드 설치는 v3.0.0부터 loadout 카탈로그 담당(github.com/netwaif/loadout).
@@ -89,7 +94,13 @@ def copy_template(template_dir: Path, target: Path, dry: bool) -> list[Path]:
         dest = target / rel
         if not dry:
             dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src, dest)
+            if src.suffix in {".sh", ".command"}:
+                # Windows checkout may expose bundled POSIX scripts as CRLF.
+                # Generated systems must remain directly executable by bash.
+                dest.write_bytes(src.read_bytes().replace(b"\r\n", b"\n"))
+                shutil.copystat(src, dest)
+            else:
+                shutil.copy2(src, dest)
         written.append(rel)
     return written
 
@@ -114,7 +125,7 @@ def preserve_instruction(target: Path, flavor: str, old_text: str | None, dry: b
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="MultiAgent 시스템 생성기 (결정적 스캐폴더)")
-    ap.add_argument("--flavor", choices=FLAVORS, help="claude | codex | antigravity (생략 시 메뉴)")
+    ap.add_argument("--flavor", choices=FLAVORS, help="claude | codex | antigravity | hermes (생략 시 메뉴)")
     ap.add_argument("--target", help="설치 대상 폴더 (생략 시 질문)")
     ap.add_argument("--yes", action="store_true", help="확인 프롬프트 생략")
     ap.add_argument("--no-validate", action="store_true", help="설치 후 validate 건너뜀")

@@ -17,7 +17,12 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 GEN = REPO / "plugins" / "multi-agent-starter" / "skills" / "configure-multiagent" / "generator"
 FLAVORS = sorted(p.name for p in (GEN / "templates").iterdir() if p.is_dir())
-INSTRUCTION_FILE = {"claude": "CLAUDE.md", "codex": "AGENTS.md", "antigravity": "AGENTS.md"}
+INSTRUCTION_FILE = {
+    "claude": "CLAUDE.md",
+    "codex": "AGENTS.md",
+    "antigravity": "AGENTS.md",
+    "hermes": "AGENTS.md",
+}
 KNOT_START, KNOT_END = "<!-- knot:start -->", "<!-- knot:end -->"
 
 
@@ -33,7 +38,8 @@ def init(tgt: Path, f: str) -> subprocess.CompletedProcess:
 def _guard_artifact(tgt: Path, f: str) -> Path:
     """flavor별 가드 배선 산출물 경로(부재 단언용). antigravity는 산출물 없음(None)."""
     return {"claude": tgt / ".claude" / "settings.json",
-            "codex": tgt / "_shared" / "guard" / "codex_goal_watch.mjs"}.get(f)
+            "codex": tgt / "_shared" / "guard" / "codex_goal_watch.mjs",
+            "hermes": tgt / "_shared" / "guard" / "codex_goal_watch.mjs"}.get(f)
 
 
 def validate_all_pass() -> int:
@@ -43,6 +49,18 @@ def validate_all_pass() -> int:
             tgt = Path(d) / f"sys-{f}"
             if init(tgt, f).returncode != 0:
                 print(f"  FAIL [{f}] init exit nonzero"); fails += 1; continue
+            shell_files = list(tgt.rglob("*.sh")) + list(tgt.rglob("*.command"))
+            bad_eol = [p.relative_to(tgt) for p in shell_files if b"\r\n" in p.read_bytes()]
+            lf_ok = not bad_eol
+            print(f"  {'PASS' if lf_ok else 'FAIL'} [{f}] generated shell scripts LF")
+            if not lf_ok:
+                print(f"    CRLF files: {', '.join(map(str, bad_eol))}")
+                fails += 1
+            attrs = (tgt / ".gitattributes").read_text(encoding="utf-8")
+            ignore = (tgt / ".gitignore").read_text(encoding="utf-8")
+            metadata_ok = "*.sh text eol=lf" in attrs and "*.multiagent-bak" in ignore
+            print(f"  {'PASS' if metadata_ok else 'FAIL'} [{f}] LF·backup metadata")
+            fails += not metadata_ok
             v = run([sys.executable, str(GEN / "validate.py"),
                      "--flavor", f, "--target", str(tgt)])
             ok = v.returncode == 0 and "전부 PASS" in v.stdout

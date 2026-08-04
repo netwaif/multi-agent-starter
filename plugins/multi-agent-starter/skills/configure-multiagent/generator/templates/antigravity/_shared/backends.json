@@ -11,7 +11,7 @@
       "cli": {
         "command": "claude",
         "args_template": [
-          "--prompt",
+          "--print",
           "@brief_content"
         ]
       },

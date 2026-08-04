@@ -21,13 +21,19 @@
       "cli": {
         "command": "claude",
         "args_template": [
-          "--prompt",
+          "--disable-slash-commands",
+          "--tools",
+          "Read,Glob,Grep",
+          "--add-dir",
+          "@target_repo",
+          "--print",
           "@brief_content"
         ]
       },
       "cwd_policy": "isolated_tmp",
       "approval_class": "worker",
       "result_capture": "envelope",
+      "tool_policy": "read-only: isolated cwd; target exposed only through --add-dir; Read,Glob,Grep; slash commands disabled",
       "timeout": 300
     },
     "gemini": {
@@ -37,6 +43,8 @@
       "cli": {
         "command": "agy",
         "args_template": [
+          "--model",
+          "gemini-3.1-pro-high",
           "--prompt",
           "@brief_content"
         ]

@@ -13,6 +13,7 @@
 # Logs / temp
 *.log
 *.tmp
+*.multiagent-bak
 
 # 런타임 캐시 — 로컬 경로·UUID 포함, git 추적 안 함
 cache/
