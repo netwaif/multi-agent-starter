@@ -9,7 +9,7 @@
     {
       "name": "multi-agent-starter",
       "description": "\"멀티 에이전트 시스템 구성해줘\"로 file-as-memory 오케스트레이션 시스템(승인 게이트·작업 재진입 프로토콜·토폴로지 4패턴·불변식 자가점검)을 대상 폴더에 결정적으로 생성. flavor: claude | codex | antigravity.",
-      "version": "3.5.0",
+      "version": "3.6.0",
       "source": "./plugins/multi-agent-starter",
       "author": {
         "name": "netwaif"

@@ -175,6 +175,13 @@ def run_checks(target: Path, flavor: str) -> list[tuple[bool, str]]:
     check(not problems, f"C9 backends.json 스키마 (문제: {problems[0] if problems else '-'})")
     check((target / "_shared/adapters/call_worker.sh").is_file(),
           "C9b 디스패처 _shared/adapters/call_worker.sh 존재")
+    # C9c 집행층 스크립트 (gate·scope_check·reentry-check) 존재 + 디스패처 배선
+    enf = ["_shared/adapters/gate.sh", "_shared/adapters/scope_check.sh", "_shared/reentry-check.sh"]
+    enf_missing = [e for e in enf if not (target / e).is_file()]
+    cw = read(target, "_shared/adapters/call_worker.sh") or ""
+    cw_code = "\n".join(l for l in cw.splitlines() if not l.lstrip().startswith("#"))
+    check(not enf_missing and 'bash "$SCRIPT_DIR/gate.sh"' in cw_code and 'bash "$SCRIPT_DIR/scope_check.sh"' in cw_code,
+          f"C9c 집행층 스크립트·배선 (없음: {enf_missing or '-'})")
 
     # C10 knot 자동층(선택). 마커 부재 = 미설치 정상 PASS, 존재 시 짝·정본·중복 검사.
     k_ok, k_why = _knot_check(instr_txt)

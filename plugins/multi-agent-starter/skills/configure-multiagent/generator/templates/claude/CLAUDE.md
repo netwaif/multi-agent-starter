@@ -93,12 +93,12 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
    - 사용자가 자연어 요청에 이미 경로를 포함했으면 다시 묻지 않음
 4. 모든 worker(claude-main 포함) 사용 시 `task.md`의 `workers_approved`에 명시적 기록 필요
 5. 각 worker의 brief를 **정확히 `tasks/<task>/workers/<role>/brief.md`** 에 작성 (≤ 1200자 한글 / 240단어 영문). 워커별 폴더로 분리할 것 — `<role>_brief.md`처럼 납작하게 만들지 말 것
-6. worker 실행 → 원문을 **`tasks/<task>/workers/<role>/result.md`** 에 저장 (같은 워커별 폴더)
+6. worker 실행 → 원문을 **`tasks/<task>/workers/<role>/result.md`** 에 저장 (같은 워커별 폴더). **실행 전 게이트 필수**: 디스패처(`call_worker.sh`) 경유 호출은 자동. native/mcp 직접 호출(claude-main·codex MCP)은 `bash _shared/adapters/gate.sh <brief>` 를 먼저 실행해 `GATE_OK` 를 받은 뒤 호출하고, 그 줄을 `log.md` `[WORKER_CALL]` 에 함께 남긴다. 외부 쓰기(write_scope 패턴) MCP 호출은 호출 전 `bash _shared/adapters/scope_check.sh --snapshot <target_repo> > tasks/<task>/artifacts/.scope-before` → 호출 후 성공·실패 무관하게 `bash _shared/adapters/scope_check.sh <target_repo> <write_scope> tasks/<task>/artifacts/.scope-before <task>` 로 검사한 뒤 결과를 채택한다
 7. `result.md`의 Verification Checklist 실행
 8. 검증 결과를 `log.md`에 append (`[VERIFICATION]` 태그). 작업이 끝나면 `task.md`의 `status`를 `done`으로 갱신
 9. 완료 후 교훈 추가 (분류): **시스템 운영 자체**에 대한 일반 교훈 → `_shared/learnings.md`(추적·공개). **특정 외부 프로젝트 한정**(mat·hwpx 등) → `_local/learnings.md`(git 추적 안 함, 없으면 생성). `_local/learnings.md`는 명시 요청 없이는 로드하지 않는다.
 
-> **기존 작업 재개 시**(새 세션 포함)는 1번부터가 아니라 `_shared/orchestrator-rules.md` §3 **재진입 프로토콜**을 먼저 따른다 (재정박 → 분기 → 에러 후 진행).
+> **기존 작업 재개 시**(새 세션 포함)는 1번부터가 아니라 `_shared/orchestrator-rules.md` §3 **재진입 프로토콜**을 먼저 따른다 (재정박 → 분기 → 에러 후 진행). 재정박 첫 동작은 `bash _shared/reentry-check.sh tasks/<task>` (status↔log 정합·역할별 brief/result 표).
 
 ## Context Rules
 
@@ -121,6 +121,7 @@ wc -w tasks/<task>/context.md   # 영문 단어수
 ## Approval Gate
 
 - `workers_approved`에 없는 worker 호출 금지 (claude-main 포함 전체 worker pool 적용)
+- **집행**: `_shared/adapters/gate.sh`(G2 승인·G3 `[APPROVAL]` 로그·G1 brief 위치·G4 한도·G5 외부 쓰기 조건·G0 인터랙티브 세션)가 fail-closed로 판정. 디스패처는 자동, native/mcp는 호출 전 실행(Task Lifecycle 6)
 - 작업당 첫 호출 전 사용자에게 확인 후 `task.md` 업데이트
 - 예외: Orchestrator의 내부 추론은 worker 호출이 아니므로 승인 불필요
 
@@ -163,6 +164,8 @@ wc -w tasks/<task>/context.md   # 영문 단어수
 4. `log.md`에 `[APPROVAL]` 태그로 외부 쓰기 승인 별도 기록
 
 위 4개 중 하나라도 누락 → `tasks/<task>/` 내부에만 산출물 작성 (diff·patch 형태 권장, 사용자가 직접 적용).
+
+**집행**: 사전 = `gate.sh` G5 — 승인 항목의 `target_repo`·`write_scope` 값이 brief와 **정확히 일치**하고, `[APPROVAL]` 로그 줄이 같은 worker와 `write_scope` 값을 함께 담아야 통과(값이 바뀌면 재승인). 사후 = `scope_check.sh` — 실행 전후 스냅샷(상태+내용 해시) 대조로 scope 밖 변경을 **보고**(status `scope_violation`, exit 10, 자동 revert 없음 — 채택 여부는 Orchestrator 판단). `none`/`tasks-only` 는 cwd가 항상 MultiAgent 루트이고 `tasks-only` 는 현재 작업 폴더만 허용. ignored 파일·비git 대상은 검사 범위 밖(`scope_check: skipped`), 검사 자체 실패는 `scope_error`로 구분(exit 10, 폴백 없음).
 
 직접 쓰기 가능한 worker도 `_shared/`, `_templates/`, 다른 작업 폴더는 쓰지 말 것.
 

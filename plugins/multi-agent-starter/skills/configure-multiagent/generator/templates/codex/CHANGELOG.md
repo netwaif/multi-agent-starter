@@ -2,6 +2,18 @@
 
 이 파일은 multi-agent-starter (Codex flavor) orchestration 시스템의 주요 변경을 기록한다.
 
+## [0.6.0] - 2026-09-06
+
+### Added
+- **집행층 코드화 (D10)** — `_shared/adapters/gate.sh`(worker 호출 사전 게이트, fail-closed: 승인·`[APPROVAL]`
+  로그·brief 위치/한도·외부 쓰기 조건 정확 일치·인터랙티브 세션) · `_shared/adapters/scope_check.sh`(write_scope
+  사후 검사, 보고만) · `_shared/reentry-check.sh`(재진입 status↔log 정합). 디스패처 자동 배선(역할 불일치 거부,
+  none/tasks-only는 cwd=루트, scope 위반은 폴백 없는 최종 실패). native/mcp 호출은 호출 전 gate.sh 실행(지침
+  Lifecycle 6). INV14 신설.
+
+### Changed
+- 승인 항목 스키마: 외부 쓰기 승인은 `target_repo`·`write_scope`를 brief와 같은 값으로 기록(approval-policy).
+
 ## [0.5.0] - 2026-07-24
 
 ### Added

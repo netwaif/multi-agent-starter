@@ -102,14 +102,14 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
    - If the user already provided a path, do not ask again.
 4. Record explicit worker approvals in `task.md` before any worker call.
 5. Write each worker's brief **exactly at `tasks/<task>/workers/<role>/brief.md`** (Korean <= 1200 chars / English <= 240 words). Use a per-worker folder — do NOT flatten to `<role>_brief.md`.
-6. Run the approved worker and save the original response **at `tasks/<task>/workers/<role>/result.md`** (same per-worker folder).
+6. Run the approved worker and save the original response **at `tasks/<task>/workers/<role>/result.md`** (same per-worker folder). **Pre-call gate is mandatory**: calls through the dispatcher (`call_worker.sh`) are gated automatically. For workers called natively or via MCP, run `bash _shared/adapters/gate.sh <brief>` first, proceed only on `GATE_OK`, and record that line in the `log.md` `[WORKER_CALL]` entry. For external-write calls (pattern `write_scope`) via MCP: before the call run `bash _shared/adapters/scope_check.sh --snapshot <target_repo> > tasks/<task>/artifacts/.scope-before`; after the call, regardless of success, run `bash _shared/adapters/scope_check.sh <target_repo> <write_scope> tasks/<task>/artifacts/.scope-before <task>` and only then decide whether to accept the result.
 7. Execute the `result.md` Verification Checklist.
 8. Append verification results to `log.md` with `[VERIFICATION]`. When the task is finished, update `status` in `task.md` to `done`.
 9. On completion, append reusable lessons only when they are genuinely reusable:
    - System-level lessons: `_shared/learnings.md`
    - Project-specific lessons: `_local/learnings.md` (not loaded unless explicitly requested)
 
-> When resuming an existing task, start with `_shared/orchestrator-rules.md` section 3 re-entry protocol, not step 1.
+> When resuming an existing task, start with `_shared/orchestrator-rules.md` section 3 re-entry protocol, not step 1. The first re-anchor action is `bash _shared/reentry-check.sh tasks/<task>` (status↔log consistency + per-role brief/result table).
 
 ## Context Rules
 
@@ -132,6 +132,7 @@ If `context.md` exceeds the limit, append history to `log.md`, then keep only th
 ## Approval Gate
 
 - Never call a worker that is missing from `workers_approved`.
+- **Enforcement**: `_shared/adapters/gate.sh` decides fail-closed (G2 approval · G3 `[APPROVAL]` log entry · G1 brief location · G4 length limit · G5 external-write conditions · G0 interactive session). Automatic through the dispatcher; run it before native/MCP calls (Task Lifecycle step 6).
 - Worker approval is task-specific and includes purpose and any external write scope.
 - Antigravity Orchestrator internal reasoning does not require approval.
 - External paid model tools still require explicit user approval even if the task is already created.
@@ -176,6 +177,8 @@ All 4 are required:
 4. `log.md` has a separate `[APPROVAL]` entry for external write approval.
 
 If any condition is missing, the worker writes only inside `tasks/<task>/`, preferably as a diff or patch for user/orchestrator application.
+
+**Enforcement**: pre-call = `gate.sh` G5 — the approval entry's `target_repo` and `write_scope` must **exactly match** the brief, and the `[APPROVAL]` log line must name the same worker together with the `write_scope` value (a changed value requires re-approval). Post-call = `scope_check.sh` — compares before/after snapshots (status + content hash) and **reports** out-of-scope changes (status `scope_violation`, exit 10, never auto-reverts — acceptance is the orchestrator's decision). With `none`/`tasks-only` the cwd is always the MultiAgent root, and `tasks-only` allows only the current task folder. Ignored files and non-git targets are outside the check (`scope_check: skipped`); a failed check is reported separately as `scope_error` (exit 10, no fallback).
 
 Workers must never edit `_shared/`, `_templates/`, or another task folder unless the current task is explicitly a system maintenance task.
 

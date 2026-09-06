@@ -120,3 +120,25 @@
 - **고쳐야 할 것(harness)**: ① `GEMINI_API_KEY` 미설정 시 agy 타임아웃 → 폴백까지 동반 실패로 **gemini 완전 상실**. 키를 설정하거나, 폴백 부재를 조기 감지해 orchestrator에 경고. ② gemini 다중파일 작업은 backends.json timeout(300) 상향 또는 청크·인라인 강제. ③ 시간 제한 대결에선 **의존 전에 경량 스모크 1회**로 가용성 확인(안 그러면 발굴 단계에서 통째로 날림).
 - **대결 영향(공정성 메모)**: 이번 seg2-bughunt B측(하네스)은 gemini를 **발굴에 못 쓰고 후반 리뷰 1패스만** 사용 — 3모델 균등 대비 핸디캡. A측(fable5-solo)과의 자원·성능 비교 해석 시 이 제약을 반영하고, **재실험 전 위 ①~③ 수정 권장.**
 **worker**: orchestrator(agy 타임아웃 진단·자체완결 brief 우회·교차검증)
+
+## codex worker — 서버 구성 롤아웃 × CLI 회귀로 도구 호출 전멸 (2026-07-09, codex-toolcall-unsupported)
+- **증상**: standalone codex(tui/exec/MCP 전부)에서 GPT의 shell 도구 호출이 전부 `unsupported call: exec_command`로 거부. 사용자 config·훅·shim 아무것도 안 바꿨는데 어느 날 아침부터 발생.
+- **근본 원인**: OpenAI 서버가 계정에 multi_agent v2 도구 구성(comp_hash 2911→3000)을 롤아웃 + codex 0.143.0의 "multi-agent v2 도구 재정리" 회귀가 겹침. 같은 바이너리가 v1 구성에선 정상, Desktop 0.142.5는 v2 구성도 정상 → 조합 버그.
+- **진단 정본 절차**: ① `~/.codex/sessions/<날짜>/rollout-*.jsonl`에서 function_call/function_call_output으로 실제 에러 문자열 확보 → ② 세션 전수 진실표(originator·cli_version·turn_context의 comp_hash·multi_agent_version × 에러 유무)로 상관관계 특정 → ③ 정상↔에러 세션 turn_context 필드 diff. **"어느 날 갑자기"는 로컬 변경 없이도 서버 플래그 롤아웃일 수 있다** — comp_hash 변화가 그 지문.
+- **워크어라운드**: config.toml `[features] multi_agent_v2 = false`(플래그명은 바이너리 `strings | grep features.`로 발굴) → v1 구성 복귀, 검증 GREEN. **CLI 업데이트 후 플래그 제거+재테스트 필요**(협업 기능 계속 꺼짐).
+- **일반 교훈**: 외부 CLI 워커는 버전업뿐 아니라 **서버 측 구성 롤아웃으로도** 소리 없이 부러진다(agy `-p` 교훈의 서버판). 워커 이상 시 해당 CLI의 세션/rollout 로그가 1차 증거원 — 재현 호출(쿼터 소모) 전에 로그부터.
+**worker**: orchestrator 단독(로그 분석·웹 확인·config 수정·검증 codex exec 1회)
+
+## codex-critic — MCP 서버 stale로 신모델 400, codex exec 헤드리스 폴백 (2026-07-10, loadout-doctor-codex)
+- **증상**: `mcp__codex__codex` 호출이 `The 'gpt-5.6-terra' model requires a newer version of Codex`(400). CLI는 0.144.0으로 최신인데 MCP 경유만 실패 — MCP 서버 프로세스가 세션 시작 시점의 구버전 바이너리로 떠 있는 stale 문제. `model` 파라미터로 다른 모델 지정도 ChatGPT 계정 제약으로 거부될 수 있음.
+- **폴백 정본**: `codex exec --sandbox read-only "$(cat brief.md)"` 헤드리스 — cwd를 target_repo로, 출력은 파일로 리다이렉트(`> raw-output.txt`) 후 결론부만 읽기(전체 트랜스크립트가 수만 토큰). read-only 강제라 critic 규약(쓰기 금지)도 유지됨. 백그라운드 실행 + 완료 알림으로 대기.
+- **일반 교훈**: MCP 도구가 모델 버전 에러를 내면 CLI 직접 호출과 버전을 대조하라 — 같은 바이너리라도 long-lived MCP 서버는 재시작 전까지 구버전. codex MCP 실패 ≠ codex 불능.
+**worker**: codex-critic(codex exec 폴백, read-only) 1회
+
+## 집행층 코드화 — 산문 규칙을 스크립트로 옮길 때의 함정 (2026-09-06, harness-enforcement-v3.6)
+- **리뷰어 2패스가 실질적**: astra(gpt-6-astra) 설계 리뷰 11건 → 구현 리뷰 9건. 2차의 절반이 "1차 지적 부분 반영"(fallback 경로 누락·env 우회 잔존·로그 연결 미흡). **설계 지적을 반영했다고 끝이 아니라 구현 diff를 같은 리뷰어에게 다시 보여야** 반쪽 반영이 드러난다. 스레드 이어쓰기(codex-reply)로 맥락 유지.
+- **bash 집행기 함정 3종**: ① `grep -F "$ROLE"`은 부분일치 — role `w`가 `write_scope`에 매칭. 단어경계 정규식 필수. ② macOS BSD grep은 `-z`+`-f` 조합이 깨짐(byte-identical 파일도 차이로 보고) → NUL 레코드 대신 hex 인코딩 한 줄 형식. ③ `sed -E 's/x=([^ ]*)/'` 파싱은 공백 경로에서 잘림 → 구조화 출력(`--json`)으로 경계 보존.
+- **fail-closed의 빈틈은 "실패 경로"에 있다**: primary만 막고 fallback을 안 막으면 성공한 fallback이 위반을 덮는다. 스냅샷 실패를 빈 스냅샷으로 취급하면 "변경 없음"으로 통과한다. 게이트를 넣을 때 정상 경로보다 **에러·폴백·빈 입력 경로**를 먼저 fixture로 잡을 것.
+- **게이트는 오케스트레이터 자신에게도 걸린다**: 2차 리뷰 brief(1356자·241단어)를 gate.sh가 거부 → 줄여서 통과. 규칙이 코드가 되면 "이번만 예외"가 사라진다 — 그게 목적.
+- **문자열 존재 검사는 배선 검사가 아니다**: INV14를 `grep 'gate.sh'`로 하면 헤더 주석만 남아도 통과. 비주석 줄의 실제 호출 패턴을 검사하고, self-test는 **호출 줄만 제거**하는 변이로 검증.
+**worker**: codex-critic(astra) 2회(MCP, read-only) · orchestrator 구현

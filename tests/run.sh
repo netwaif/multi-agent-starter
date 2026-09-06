@@ -20,6 +20,13 @@ for t in "$HERE"/dispatcher/test_*.sh; do
   bash "$t" || fail=1
 done
 
+echo "== script tests =="
+for t in "$HERE"/scripts/test_*.sh; do
+  [ -f "$t" ] || continue
+  echo "-- $(basename "$t")"
+  bash "$t" || fail=1
+done
+
 echo
 if [ "$fail" -eq 0 ]; then echo "ALL TESTS PASS"; else echo "SOME TESTS FAILED"; fi
 exit "$fail"

@@ -5,6 +5,8 @@
 #   payload-file(선택): brief 한도(1200자)와 별도인 동봉 자료(예: sources/gemini-packet.md).
 #   디스패처가 brief 뒤에 결합해 전달 — brief 본문 inline 금지 규칙과 충돌 없이 대용량 자료 전달.
 #   미리보기: call_worker.sh --merged-preview <brief-file> <payload-file>  (백엔드 호출 없이 결합 결과 출력)
+# 사전 게이트: gate.sh(승인·[APPROVAL]·brief 위치/한도·외부쓰기 조건·D5) 통과 못 하면 exit 9.
+# 사후 검사: write_scope 패턴이면 scope_check.sh로 scope 밖 변경 보고(status=scope_violation, exit 10, 비파괴).
 # 반환: stdout에 result envelope(JSON). exit 0=성공, 비0=실패/거부.
 set -euo pipefail
 
@@ -47,6 +49,16 @@ case "$BRIEF" in *..*) die "brief 경로에 '..' 금지" 6;; esac
 [ -f "$BRIEF" ] || die "brief 파일 없음: $BRIEF" 6
 BRIEF="$(cd "$(dirname -- "$BRIEF")" && pwd)/$(basename -- "$BRIEF")"
 
+# 사전 게이트(fail-closed): 승인·[APPROVAL]·brief 위치/한도·외부쓰기 조건·D5 (gate.sh 정본, preview는 비경유)
+GATE_REPO="-"; GATE_SCOPE="none"
+if [ "$PREVIEW" != 1 ]; then
+  gate_json="$(MULTIAGENT_ROOT="$ROOT" bash "$SCRIPT_DIR/gate.sh" --json "$BRIEF")" || die "게이트 거부 (gate.sh exit $?)" 9
+  GATE_TASK="$(jq -r .task <<<"$gate_json")"; GATE_ROLE="$(jq -r .role <<<"$gate_json")"
+  GATE_REPO="$(jq -r .target_repo <<<"$gate_json")"; GATE_SCOPE="$(jq -r .write_scope <<<"$gate_json")"
+  # 승인된 역할(brief 경로) == 호출 역할(첫 인자). 불일치 = 미승인 백엔드 실행이므로 거부
+  [ "$GATE_ROLE" = "$ROLE" ] || die "역할 불일치: brief는 $GATE_ROLE 승인, 호출은 $ROLE" 9
+fi
+
 # payload(선택) — brief 한도 밖 동봉 자료. brief 뒤에 결합한 임시 brief로 치환.
 if [ -n "$PAYLOAD" ]; then
   case "$PAYLOAD" in *..*) die "payload 경로에 '..' 금지" 6;; esac
@@ -87,7 +99,10 @@ run_backend() {
 
   case "$cwdp" in
     isolated_tmp) wd="$(mktmpd)";;
-    target)       wd="${TARGET_REPO:-$ROOT}";;
+    # target: 외부 쓰기 승인(write_scope 패턴)이 있을 때만 brief의 target_repo(gate가 존재 보장). none/tasks-only는 항상 $ROOT.
+    #         환경변수 fallback 없음(잔존 env로 승인 없는 repo에서 실행되는 것 방지).
+    target)       wd="$ROOT"
+                  case "$GATE_SCOPE" in none|tasks-only) ;; *) [ "$GATE_REPO" != "-" ] && wd="$GATE_REPO";; esac;;
     *)            wd="$ROOT";;
   esac
 
@@ -141,6 +156,17 @@ run_backend() {
   fi
 
   out="$(mktmp)"; err="$(mktmp)"; errd="$(mktmp)"
+  # 실행 전 스냅샷(사후 scope_check용). git repo 아니면 검사 불가(skipped). git repo인데 스냅샷 실패면 fail-closed로 호출 거부.
+  local snap="" scope_state="skipped"
+  if git -C "$wd" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    snap="$(mktmp)"
+    if ! bash "$SCRIPT_DIR/scope_check.sh" --snapshot "$wd" >"$snap" 2>"$snap.err"; then
+      jq -n --arg model "$model" --arg backend "$ctype" --rawfile e "$snap.err" \
+        '{status:"scope_error", exit_code:12, backend:$backend, model:$model, duration_s:0, stdout:"",
+          stderr_sanitized:("실행 전 스냅샷 실패 — scope 검사 불가하므로 호출 거부: " + $e), scope_check:"error", scope_violations:[]}'
+      rm -f "$snap.err"; return 12
+    fi; rm -f "$snap.err"
+  fi
   start=$(date +%s)
   rc=0
   (
@@ -158,12 +184,24 @@ run_backend() {
   [ "$rc" -ne 0 ] && status="error"
   [ "$rc" -eq 124 ] && status="timeout"
 
+  # 사후 scope 검사(보고만): scope 밖 변경이 있으면 status=scope_violation, exit 10. stdout은 보존.
+  # 사후 검사 결과: ok / violation(status=scope_violation) / error(status=scope_error — 검사 자체 실패, 성공과 구분). 둘 다 exit 10=최종 실패
+  local viol="[]"
+  if [ -n "$snap" ]; then
+    local vf src; vf="$(mktmp)"; scope_state="ok"
+    if bash "$SCRIPT_DIR/scope_check.sh" "$wd" "$GATE_SCOPE" "$snap" "$GATE_TASK" >"$vf" 2>"$vf.err"; then :; else src=$?
+      if [ "$src" -eq 10 ]; then viol="$(jq -R . <"$vf" | jq -s .)"; status="scope_violation"; rc=10; scope_state="violation"
+      else status="scope_error"; rc=10; scope_state="error"; cat "$vf.err" >>"$err"; fi
+      rm -f "$vf.err"
+    fi
+  fi
+
   redact <"$err" >"$errd"
   jq -n --arg status "$status" --argjson exit "$rc" \
         --rawfile stdout "$out" --rawfile stderr "$errd" \
-        --argjson dur "$dur" --arg backend "$ctype" --arg model "$model" \
+        --argjson dur "$dur" --arg backend "$ctype" --arg model "$model" --argjson viol "$viol" --arg sc "$scope_state" \
         '{status:$status, exit_code:$exit, backend:$backend, model:$model,
-          duration_s:$dur, stdout:$stdout, stderr_sanitized:$stderr}'
+          duration_s:$dur, stdout:$stdout, stderr_sanitized:$stderr, scope_check:$sc, scope_violations:$viol}'
   return "$rc"
 }
 
@@ -173,6 +211,11 @@ if [ "$prc" -eq 0 ]; then
   jq -n --argjson e "$env_primary" '$e + {fallback_used:false}'
   exit 0
 fi
+# scope 위반(10)/검사 불가(12)는 재시도 대상이 아닌 최종 실패: 폴백 없이 해당 envelope 보존 (primary·fallback 동일)
+if [ "$prc" -eq 10 ] || [ "$prc" -eq 12 ]; then
+  jq -n --argjson e "$env_primary" '$e + {fallback_used:false}'
+  exit "$prc"
+fi
 nf="$(jq '.fallbacks | length' <<<"$rec")"
 env_fb=""; i=0
 while [ "$i" -lt "${nf:-0}" ]; do
@@ -181,6 +224,10 @@ while [ "$i" -lt "${nf:-0}" ]; do
   if [ "$frc" -eq 0 ]; then
     jq -n --argjson e "$env_fb" '$e + {fallback_used:true}'
     exit 0
+  fi
+  if [ "$frc" -eq 10 ] || [ "$frc" -eq 12 ]; then
+    jq -n --argjson e "$env_fb" '$e + {fallback_used:true}'
+    exit "$frc"
   fi
   i=$((i+1))
 done

@@ -101,6 +101,14 @@ core_checks() {
   else
     ng "INV13 backends 실행계약 정합 (jq 없음 — 디스패처 필수 의존이므로 설치 필요)"
   fi
+
+  # INV14 집행층 존재·배선 (D14)
+  local GATE="$ROOT/_shared/adapters/gate.sh" SCK="$ROOT/_shared/adapters/scope_check.sh" REC="$ROOT/_shared/reentry-check.sh" CW="$ROOT/_shared/adapters/call_worker.sh"
+  if [ -f "$GATE" ] && [ -f "$SCK" ] && [ -f "$REC" ] \
+     && grep -v '^[[:space:]]*#' "$CW" | grep -q 'bash "\$SCRIPT_DIR/gate.sh"' \
+     && grep -v '^[[:space:]]*#' "$CW" | grep -q 'bash "\$SCRIPT_DIR/scope_check.sh"' \
+     && grep -q 'gate.sh' "$INSTR" && grep -q 'reentry-check.sh' "$INSTR" && grep -q 'reentry-check.sh' "$ORC"; then
+    ok "INV14 집행층 존재·배선"; else ng "INV14 집행층 존재·배선"; fi
 }
 
 maintainer_checks() {
@@ -138,13 +146,13 @@ maintainer_checks() {
 
 self_test() {
   command -v python3 >/dev/null 2>&1 || { echo "self-test는 python3 필요"; exit 5; }
-  local SRC_FILES="CLAUDE.md _shared/routing.md _shared/approval-policy.md _shared/design-basis.md _shared/orchestrator-rules.md _shared/backends.json _templates/log.md _templates/context.md _templates/worker-brief.md _templates/worker-result.md _templates/task-folder.md"
+  local SRC_FILES="CLAUDE.md _shared/routing.md _shared/approval-policy.md _shared/design-basis.md _shared/orchestrator-rules.md _shared/backends.json _shared/reentry-check.sh _shared/adapters/call_worker.sh _shared/adapters/gate.sh _shared/adapters/scope_check.sh _templates/log.md _templates/context.md _templates/worker-brief.md _templates/worker-result.md _templates/task-folder.md"
   local TFAIL=0
 
   make_copy() {  # make_copy <destdir>
     local d="$1" f
-    mkdir -p "$d/_shared" "$d/_templates"
-    for f in $SRC_FILES; do cp "$ROOT/$f" "$d/$f"; done
+    mkdir -p "$d/_shared/adapters" "$d/_templates"
+    for f in $SRC_FILES; do cp -p "$ROOT/$f" "$d/$f"; done
   }
   replace_in() {  # replace_in <file> <old> <new> — 패턴 부재는 no-op(사본이 무결로 남아 fixture 단계가 잡음)
     python3 - "$1" "$2" "$3" <<'PYEOF'
@@ -187,6 +195,10 @@ PYEOF
   WORK="$(mktemp -d)"; make_copy "$WORK"; replace_in "$WORK/CLAUDE.md" '운영 원칙 (Operating Principles)' '운영 지침'; run_case "INV12"
   WORK="$(mktemp -d)"; make_copy "$WORK"; replace_in "$WORK/_templates/worker-brief.md" '가정은 명시하고' '가정은 질문하고'; run_case "INV12c"
   WORK="$(mktemp -d)"; make_copy "$WORK"; replace_in "$WORK/_shared/backends.json" '"workspace-write"' '"read-only"'; run_case "INV13"
+  # INV14a: 주석·헤더의 'gate.sh' 문자열은 남기고 실제 호출 줄만 제거 (문자열 존재 검사로는 못 잡는 파손)
+  WORK="$(mktemp -d)"; make_copy "$WORK"; replace_in "$WORK/_shared/adapters/call_worker.sh" 'bash "$SCRIPT_DIR/gate.sh" --json "$BRIEF"' 'true'; run_case "INV14a"
+  WORK="$(mktemp -d)"; make_copy "$WORK"; rm "$WORK/_shared/adapters/scope_check.sh"; run_case "INV14b"
+  WORK="$(mktemp -d)"; make_copy "$WORK"; replace_in "$WORK/CLAUDE.md" 'reentry-check.sh' 'reentry_check.sh'; run_case "INV14c"
 
   echo "----------------------------------------"
   if [ "$TFAIL" = 0 ]; then echo "self-test: 전체 fixture 통과 (러너가 각 불변식 파손을 검출함)"; exit 0

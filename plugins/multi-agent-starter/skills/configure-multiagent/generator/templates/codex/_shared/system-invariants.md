@@ -17,6 +17,7 @@
 | INV9 | gemini 백엔드가 `_shared/backends.json`에서 `agy` CLI(command agy)이고 기본 모델 `gemini-3.1-pro-high`; routing.md·D4가 backends를 정본 참조, 옛 `mcp__gemini-pro__*` 활성호출 없음 |
 | INV12 | gemini api 폴백 = 미구현 슬롯이므로 `backends.json` `fallbacks` 빈 배열(거짓 안전신호 금지, D9) |
 | INV11 | 카파시 4원칙(D7): `AGENTS.md`에 "Operating Principles" 섹션 존재, `_templates/worker-brief.md`에 "Worker 행동 규약" 고정 블록 존재, 블록 안에 사용자질문 지시(질문/ask) 없음, `worker-result.md` 체크리스트에 표면화 항목 존재 |
+| INV14 | 집행층 존재·배선: `_shared/adapters/gate.sh`·`scope_check.sh`·`_shared/reentry-check.sh` 존재(bash 경유 호출이라 실행권한 불요), `call_worker.sh`가 `gate.sh`·`scope_check.sh` 호출, `AGENTS.md`에 `gate.sh`·`reentry-check.sh` 포인터, orchestrator-rules §3에 `reentry-check.sh` | D10 위반 — 집행 스크립트 유실 또는 배선 끊김(산문만 남아 fail-open 회귀) |
 
 ## 자가 점검 실행
 

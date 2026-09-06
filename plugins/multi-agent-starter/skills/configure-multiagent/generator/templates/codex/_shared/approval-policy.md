@@ -51,4 +51,17 @@ workers_approved:
     approved_by: user
 ```
 
+외부 repo 쓰기 승인은 항목에 `target_repo`·`write_scope`를 **brief와 같은 값으로** 함께 기록한다 (`gate.sh` G5가 정확 일치를 검사 — 값이 바뀌면 재승인):
+
+```yaml
+  - worker: codex-main
+    approved_at: <YYYY-MM-DD>
+    purpose: 구현 (engineer) — 외부 repo 쓰기
+    approved_by: user
+    target_repo: /absolute/path/to/repo
+    write_scope: "src/**, tests/**"
+```
+
+`log.md`의 `[APPROVAL]` 줄에도 같은 worker와 `write_scope` 값을 함께 적는다 (예: `[APPROVAL] codex-main 외부 쓰기 승인 write_scope="src/**, tests/**"`).
+
 날짜 명령어: `date +%Y-%m-%d`

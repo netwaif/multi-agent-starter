@@ -17,6 +17,7 @@
 | INV9 | 오케스트레이터가 agy/Gemini 3.1 Pro High (`AGENTS.md` 명시), `backends.json` workers = `claude-main`·`codex-main`·`codex-critic` (gemini 워커 없음) |
 | INV10 | `gemini` 워커 호출(`call_worker.sh gemini`)·옛 `mcp__gemini-pro__*` 브리지가 활성 지침으로 없음 |
 | INV11 | 카파시 4원칙(D7): `AGENTS.md`에 "Operating Principles" 섹션 존재, `_templates/worker-brief.md`에 "Worker 행동 규약" 고정 블록 존재, 블록 안에 사용자질문 지시(질문/ask) 없음, `worker-result.md` 체크리스트에 표면화 항목 존재 |
+| INV14 | 집행층 존재·배선: `_shared/adapters/gate.sh`·`scope_check.sh`·`_shared/reentry-check.sh` 존재(bash 경유 호출이라 실행권한 불요), `call_worker.sh`가 `gate.sh`·`scope_check.sh` 호출, `AGENTS.md`에 `gate.sh`·`reentry-check.sh` 포인터, orchestrator-rules §3에 `reentry-check.sh` | D10 위반 — 집행 스크립트 유실 또는 배선 끊김(산문만 남아 fail-open 회귀) |
 
 ## 자가 점검 실행
 

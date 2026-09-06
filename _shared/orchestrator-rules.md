@@ -11,7 +11,7 @@ MultiAgent Orchestrator는 인터랙티브 Claude Code 세션에서만 실행한
 - 시스템 프롬프트에 `# Background Session` 블록이 보이거나
 - `$CLAUDE_JOB_DIR` 환경변수가 설정돼 있으면
 
-→ 즉시 거부하고 사용자에게 "인터랙티브 세션에서 다시 시작해주세요" 안내. 백그라운드 harness는 EnterWorktree를 강제하므로 본체 `tasks/` 경로에 직접 쓸 수 없고, MultiAgent의 file-as-memory 원칙(mat을 비롯한 외부 도구가 본체를 읽음)과 충돌한다.
+→ 즉시 거부하고 사용자에게 "인터랙티브 세션에서 다시 시작해주세요" 안내. (집행: `_shared/adapters/gate.sh` G0 — `CLAUDE_JOB_DIR` 감지 시 worker 호출 거부. Claude 호스트 신호이며 다른 flavor는 산문 규칙으로만.) 백그라운드 harness는 EnterWorktree를 강제하므로 본체 `tasks/` 경로에 직접 쓸 수 없고, MultiAgent의 file-as-memory 원칙(mat을 비롯한 외부 도구가 본체를 읽음)과 충돌한다.
 
 ---
 
@@ -35,7 +35,7 @@ MultiAgent Orchestrator는 인터랙티브 Claude Code 세션에서만 실행한
 
 이미 `tasks/<task>/`가 있는 작업을 다시 만질 때(특히 맥락 0인 새 세션) 적용. 끝난 작업이라도 콜드세션이 맨손으로 시작하지 않게 한다.
 
-**1단계 — 재정박(re-anchor, 필수)**: 어떤 액션(편집·worker 호출) 전에도 먼저 읽는다 — `task.md`(goal·**status**·workers_approved) → `context.md`(현재 스냅샷) → `log.md` 최근 항목(특히 마지막 `[WORKER_CALL]`/`[VERIFICATION]`) → 관련 `workers/<role>/brief.md`·`result.md`. 읽기 전 행동 금지.
+**1단계 — 재정박(re-anchor, 필수)**: 먼저 `bash _shared/reentry-check.sh tasks/<task>` 를 돌려 status↔log 정합과 역할별 brief/result/승인 표를 받는다(불일치면 아래 "status↔log 불일치" 분기부터). 그 다음 읽는다 — `task.md`(goal·**status**·workers_approved) → `context.md`(현재 스냅샷) → `log.md` 최근 항목(특히 마지막 `[WORKER_CALL]`/`[VERIFICATION]`) → 관련 `workers/<role>/brief.md`·`result.md`. 읽기 전 행동 금지.
 
 **2단계 — 분기 판단** (result.md 유무만으로 판단하지 말 것 — status·log·brief를 함께 본다):
 - **초기 실행** — brief·result 모두 없고 status `pending` → 정상 라이프사이클(CLAUDE.md "Task Lifecycle")
@@ -44,7 +44,7 @@ MultiAgent Orchestrator는 인터랙티브 Claude Code 세션에서만 실행한
 - **기존 결과 개선** — 기존 result.md를 입력으로 개선. 이전 result.md는 덮지 말고 `result-fix.md` 등으로 버전 보존하고, **현재 채택(authoritative) result 경로를 `context.md`에 명시**(어느 게 최신인지 모호 금지)
 - **새 입력** — 입력이 바뀌었으면 이전 산출물 보존하고 새 result로. 범위가 다르면 새 작업 폴더(단 아래 **분리 게이트** 적용). **`target_repo`/`write_scope`가 바뀌면 기존 승인은 무효 — 새 승인 없이는 외부 쓰기 금지(artifacts diff로 제한)**
 - **새 작업 폴더 생성 게이트 (분리·핸드오프·후속 단계) — 강제**: 기존 작업의 *후속·제작·핸드오프·하위 단계*를 별도 폴더(**경로 불문** — `tasks/<new>/`가 기본이나 `tasks/` 밖·기존 폴더 재사용 포함)로 분리하려면 **먼저 사용자에게 폴더 구조(분리 여부·폴더명)를 확인하고 승인받는다.** done 처리된 작업의 핸드오프라도 자동 분리 금지 — 사용자가 직접 폴더를 봐야 알게 되는 *우연 발견*은 추적 실패다. **분리가 일어나면(사용자가 먼저 분리를 지시한 경우에도) 항상** 즉시(나중 미룸 금지) 연결고리를 채운다: ① 새 `task.md`에 `parent:` 명시 ② 새 `context.md`에 부모의 *authoritative 산출물(`result.md`/`result-fix.md`·`artifacts/` 경로)·log 핵심 구간*을 '필독 입력'으로 **경로만**(inline 금지) 명시 ③ 메모리 인덱스를 쓰는 환경이면 그 인덱스(예 `MEMORY.md`)에 부모↔자식 포인터 1줄. **확인 절차**는 사용자가 명시적으로 분리를 요청했으면 면제되지만, **①~③ 연결고리는 면제되지 않는다.** 예외: 사용자가 기존 작업과 *독립된* 신규 작업이라고 명시한 경우만 정상 라이프사이클(CLAUDE.md Task Lifecycle).
-- **status↔log 불일치 (다른 분기보다 먼저 적용)** — 위 분기들은 status를 신뢰해 판단하므로, 불일치 검사를 **가장 먼저** 한다. 불일치면 log(append-only 정본)를 신뢰해 status를 실제에 맞게 정정하고 `[DECISION]` 기록한 뒤, **정정된 status로 위 분기를 다시 적용**한다 (불일치는 단독 종착 분기가 아니라 정규화 단계)
+- **status↔log 불일치 (다른 분기보다 먼저 적용)** — 위 분기들은 status를 신뢰해 판단하므로, 불일치 검사를 **가장 먼저** 한다. 불일치면(`reentry-check.sh` exit 11 — 검출만 하고 정정은 하지 않는다) log(append-only 정본)를 신뢰해 status를 실제에 맞게 정정하고 `[DECISION]` 기록한 뒤, **정정된 status로 위 분기를 다시 적용**한다 (불일치는 단독 종착 분기가 아니라 정규화 단계)
 
 **3단계 — 에러 후 진행(worker 실패·hang·상충)**:
 - 실패/타임아웃 → **1회 재시도**. 재실패 시 진행을 통째로 멈추지 말고 누락을 `result.md`·`log.md` `[ERROR]`에 명시하고 가능한 부분만 진행

@@ -86,6 +86,14 @@ else
   ng "INV12 gemini fallbacks 비활성 (jq 없음 — 디스패처 필수 의존이므로 설치 필요)"
 fi
 
+# INV14 집행층 존재·배선 (D10)
+GATE="$ROOT/_shared/adapters/gate.sh"; SCK="$ROOT/_shared/adapters/scope_check.sh"; REC="$ROOT/_shared/reentry-check.sh"; CW="$ROOT/_shared/adapters/call_worker.sh"
+if [ -f "$GATE" ] && [ -f "$SCK" ] && [ -f "$REC" ] \
+   && grep -v '^[[:space:]]*#' "$CW" | grep -q 'bash "\$SCRIPT_DIR/gate.sh"' \
+   && grep -v '^[[:space:]]*#' "$CW" | grep -q 'bash "\$SCRIPT_DIR/scope_check.sh"' \
+   && grep -q 'gate.sh' "$INSTR" && grep -q 'reentry-check.sh' "$INSTR" && grep -q 'reentry-check.sh' "$ORC"; then
+  ok "INV14 집행층 존재·배선"; else ng "INV14 집행층 존재·배선"; fi
+
 echo "----------------------------------------"
 echo "결과: PASS=$PASS FAIL=$FAIL"
 if [ "$FAIL" = 0 ]; then echo "== ALL PASS =="; exit 0; else echo "== FAIL 존재 — 커밋 금지 (system-invariants.md 표 참조) =="; exit 1; fi

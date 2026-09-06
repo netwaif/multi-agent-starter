@@ -5,6 +5,25 @@
 (정본: `generator/templates/{claude,codex}/CHANGELOG.md`)를 참조한다.
 형식은 [Keep a Changelog](https://keepachangelog.com/), 버전은 [Semantic Versioning](https://semver.org/lang/ko/)을 따른다.
 
+## [3.6.0] - 2026-09-06
+
+### Added
+- **집행층 코드화 (D14)** — 기계로 판정 가능한 규칙을 산문에서 벤더중립 셸 스크립트로 이관(3 flavor 공유,
+  호스트 훅 미도입). ① `_shared/adapters/gate.sh <brief>` 사전 게이트(fail-closed, exit 9):
+  G0 인터랙티브 세션 · G1 brief 위치 · G2 workers_approved · G3 `[APPROVAL]` 로그 · G4 한도(한글 1200자/영문 240단어,
+  한글 비율 판정) · G5 외부 쓰기 조건(승인 항목의 target_repo·write_scope가 brief와 정확 일치).
+  ② `_shared/adapters/scope_check.sh` 사후 검사(보고만, exit 10): `--snapshot` + 실행 후 대조(porcelain -z +
+  내용 해시 → dirty/untracked 재수정·rename 원본까지 검출). ③ `_shared/reentry-check.sh <task>` 재진입 정합
+  (status↔log 불일치 검출, 정정은 오케스트레이터). 디스패처가 gate·scope_check를 자동 배선(역할 불일치 거부,
+  scope별 cwd: none/tasks-only는 루트, 위반은 폴백 없는 최종 실패, envelope `scope_check`·`scope_violations`).
+  native/mcp 호출은 지침 Lifecycle 6에 따라 호출 전 gate.sh 실행. INV14 + validate C9c + tests 3종 신설.
+  발견 경위: harness-self-review 권고 6 채택 + astra(gpt-6-astra) 설계 리뷰 11건 반영.
+
+### Changed
+- **claude flavor 1.5.0 / codex flavor 0.6.0 / antigravity flavor 0.4.0** — 위 집행층 동봉, 승인 항목 스키마에
+  외부 쓰기용 `target_repo`·`write_scope` 필드(approval-policy), 지침 Lifecycle 6·Approval Gate·쓰기 정책·재진입에
+  집행 포인터.
+
 ## [3.5.0] - 2026-07-24
 
 ### Added
