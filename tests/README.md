@@ -28,6 +28,7 @@ bash   tests/dispatcher/test_fallback.sh
 | `dispatcher/test_fallback.sh` | primary 실패 → fallback (S5) | 가짜 `agy`(exit1)+`claude`(exit0) |
 | `dispatcher/test_timeout.sh` | timeout → 124 (S6) | 가짜 `agy` sleep |
 | `dispatcher/test_guards.sh` | usage/`..`/role/allowlist 차단 (A6) | |
+| `dispatcher/test_codex_exec.sh` | codex exec 계약(인자·stdin·cwd=tasks/<task>/·외부 쓰기 target_repo)·`--out` 요약·진행 표시 (D15) | 실제 `_shared/backends.json` 사용, 가짜 `codex` |
 
 ## 자동화되지 않는 것 (수동 — `docs/ACCEPTANCE.md` 참조)
 

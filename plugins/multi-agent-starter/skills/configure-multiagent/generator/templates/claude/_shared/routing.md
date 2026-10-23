@@ -82,14 +82,23 @@ decision tree로 "누구를" 고른 뒤, "어떻게 엮을지" 고른다. **단�
 - **슬롯**: engineer · computer-use
 - **용도**: 대규모 구현·리팩토링 (claude-main 설계 기반 또는 단독), 코드베이스 분석, 테스트 작성·실행, diff 생성, 로컬 CLI 검증, 브라우저 조작·도구 워크플로우 자동화, 이미지 생성 (Codex 내장 `image_gen` 도구)
 - **결과물**: 코드, diff, 테스트 결과, CLI 출력, PNG/SVG 이미지
-- **호출 명령**: `mcp__codex__codex` MCP 도구
-  - `prompt`: brief.md 내용 그대로 전달
-  - `cwd`:
-    - 기본: `<설치한-폴더>/tasks/<task>/` — 이 안에서 산출물·diff 직접 작성
-    - 외부 쓰기 4조건 충족 시: brief.md의 `target_repo` 값으로 변경
+- **호출 명령**: `codex exec` 헤드리스 CLI — `_shared/backends.json`의 `codex-main` 항목이 정본. 디스패처로 호출:
+  ```
+  bash _shared/adapters/call_worker.sh --out tasks/<task>/workers/codex-main/envelope.json codex-main tasks/<task>/workers/codex-main/brief.md
+  ```
+  - 실행 인자(디스패처가 조립): `codex exec --sandbox workspace-write -c approval_policy=never -` (brief는 stdin)
+  - `cwd`(backends `cwd_policy: task`):
+    - 기본(`write_scope: none`/`tasks-only`): `tasks/<task>/` — 이 안에서 산출물·diff 직접 작성
+    - 외부 쓰기 4조건 충족(`write_scope` 패턴) 시: brief.md의 `target_repo`
   - `sandbox`: `workspace-write` 고정 (cwd 내부만 쓰기 가능. cwd 밖은 sandbox가 차단)
-  - `approval-policy`: 헤드리스 호출은 `never`(backends.json 정본 — 승인 프롬프트를 받을 수 없는 환경에서 결정적 거부, fail-closed). 대화형 수동 호출 시에만 `on-failure` 선택 가능
-- **MCP 실패 시 폴백 (정본 절차, 2026-07-10 실측)**: MCP 서버 stale(모델 버전 에러 등)이면 backends.json의 CLI 폴백과 동일 인자로 헤드리스 실행 — `codex exec --sandbox workspace-write "$(cat brief.md)"`, cwd=`tasks/<task>/`. 출력은 파일로 리다이렉트(`> raw-output.txt`) 후 결론부만 읽기. codex-critic 폴백은 `--sandbox read-only` 강제
+  - 승인 정책: `never` 고정(헤드리스 — 승인 프롬프트를 받을 수 없으므로 결정적 거부, fail-closed)
+  - 사전 게이트(gate.sh)·사후 scope 검사(scope_check.sh)는 디스패처가 자동 처리 — 오케스트레이터는 `log.md` `[WORKER_CALL]`만 남긴다
+- **Claude Code 화면 규칙 (필독)**: 호출은 Bash 도구 **한 번**으로 끝낸다.
+  - Bash 도구 `timeout: 600000`(10분)을 지정한다 — 기본 2분이면 codex 작업이 도중에 잘린다. 디스패처 timeout(540s)이 그보다 짧아 envelope는 항상 돌아온다.
+  - 9분(540s)을 넘길 작업은 brief를 쪼개는 것이 기본. 꼭 한 번에 돌려야 하면 backends의 codex `timeout`을 늘리고 Bash `run_in_background: true`로 돌린 뒤 완료 알림을 기다린다(폴링 금지).
+  - `--out`을 주면 화면에는 상태·소요 시간·워커 최종 응답(끝 60줄)만 나오고 envelope 전문은 파일에 남는다. 출력을 따로 리다이렉트하지 말 것.
+  - 끝나면 envelope의 `.stdout`(= codex 최종 응답)을 `result.md`에 기록: `jq -r .stdout <envelope> > tasks/<task>/workers/codex-main/result.md`
+- **git 필요**: codex exec는 git 저장소 안에서만 돈다(설치 폴더에서 `git init`). 없으면 디스패처가 exit 8로 즉시 알린다. 위험을 감수한 우회만 `MULTIAGENT_CODEX_SKIP_GIT=1`.
 - **brief 필수 필드** (오케스트레이터가 사용자에게 target_repo를 먼저 묻고 답을 받아 채운다 — 분석·리뷰·요약 작업은 예외):
   ```yaml
   target_repo: /absolute/path/to/repo                   # 작업 대상 절대 경로 (없으면 N/A)
@@ -106,8 +115,8 @@ decision tree로 "누구를" 고른 뒤, "어떻게 엮을지" 고른다. **단�
 - **용도**: 리뷰 대상 산출물(주로 claude-main 코드·설계, 또는 brief에 명시된 기존 코드·문서·소스)을 실제 repo/파일/CLI 관점에서 리뷰·비평. 실현 가능성, 비용, 테스트 커버리지, 사이드 이펙트 검토. **Codex의 주된 역할.**
 - **선행 조건**: 리뷰 대상 산출물 경로가 존재 — 보통 claude-main `result.md`, 또는 brief에 명시된 기존 코드·문서·소스
 - **결과물**: 비평 리스트, 수정 제안
-- **호출 명령**: codex-main과 동일 (`mcp__codex__codex` MCP). 단 다음 강제:
-  - `sandbox`: `read-only` 고정 (쓰기 금지)
+- **호출 명령**: codex-main과 동일 절차(디스패처, 화면 규칙 동일) — `call_worker.sh --out tasks/<task>/workers/codex-critic/envelope.json codex-critic tasks/<task>/workers/codex-critic/brief.md`. 단 다음 강제:
+  - `sandbox`: `read-only` 고정 (쓰기 금지 — backends.json 정본)
   - brief에 "비평 모드" 명시
   - brief의 `target_repo` 명시 (비평 대상 repo 컨텍스트), `write_scope: none`
 - **비용**: 있음 → 승인 필요
@@ -126,7 +135,7 @@ decision tree로 "누구를" 고른 뒤, "어떻게 엮을지" 고른다. **단�
 - **소스·다중파일 검토는 packet 동봉 필수 (2026-07-04 실측 → 2026-07-24 payload 분리, D13)**: 소스 코드 발굴·검토를 시킬 땐 **디렉토리나 다수 파일 순회를 시키지 말 것** — agy 헤드리스가 300s 타임아웃(exit 124)으로 전멸한다(자료를 동봉해 재호출한 실측 = 27s exit 0). 필요한 스니펫은 brief에 인라인하지 말고(brief 한도·inline 금지 유지) `tasks/<task>/sources/gemini-packet.md`에 담아 **디스패처 3번째 인자로 동봉**한다: `call_worker.sh gemini <brief> <packet>` — 디스패처가 brief 뒤에 "동봉 자료" 헤더로 결합하며, brief에는 "동봉 자료만 사용, 파일 열지 말 것"을 명시. 결합 결과는 `--merged-preview`로 사전 확인 가능. 단일 이미지/PDF 경로 참조(위 항목)는 예외(~26s 정상). 시간 제한 작업에서 gemini에 의존하기 전 경량 스모크 1회로 가용성부터 확인.
 - **폴백 조건**: api 폴백 슬롯(`adapters/gemini_api.sh`)은 **미구현·비활성**(spike S3 미완 — 키가 있어도 무조건 exit 4). backends.json `fallbacks`에서 제거됨(거짓 안전신호 방지, 2026-07-24 D11). agy(primary) 실패 시 폴백 없이 실패한다(사유는 envelope `stderr_sanitized`). Gemini REST 호출 구현 후에만 fallbacks 재등록.
 - **비용**: agy 쿼터 소모 → 승인 필요. 빠른 경로는 backends에서 `model`을 flash/pro-low로.
-- **파일 쓰기**: ❌ MCP 응답을 Orchestrator가 받아 기록
+- **파일 쓰기**: ❌ envelope 응답을 Orchestrator가 받아 기록
 
 ## 모델 정책
 
@@ -134,7 +143,7 @@ decision tree로 "누구를" 고른 뒤, "어떻게 엮을지" 고른다. **단�
 
 - **claude-main**: 별칭 **`opus`** (`.claude/agents/claude-main.md` frontmatter `model: opus`). 버전 문자열을 핀하지 않는다 — 별칭이 현재 환경의 최신 Opus로 자동 해석되므로 모델이 올라가도 갱신 불필요.
   - **추론 강도(effort)**: claude-main 정의엔 `effort` 필드가 **없음 → 세션 `/effort` 값을 상속**한다(현재 세션이 high면 high로 동작). 세션과 무관하게 고정하려면 frontmatter에 `effort: high` 등을 명시(상속 끔). 고정은 결정성↑이나 현재는 상속 유지가 기본.
-- **codex-main / codex-critic**: 사용자의 `~/.codex/config.toml` 기본값이 자동 적용된다 (현재 예: 최신 gpt + reasoning effort `high`). config.toml이 정본이라 여기에 버전을 핀하지 않는다. MCP 호출 시 `model` 파라미터를 비워두면 config 기본값 사용.
+- **codex-main / codex-critic**: 사용자의 `~/.codex/config.toml` 기본값이 자동 적용된다 (현재 예: 최신 gpt + reasoning effort `high`). config.toml이 정본이라 여기에 버전을 핀하지 않는다. backends.json에 `-m`을 넣지 않으므로 config 기본값 사용.
   - 가벼운 작업은 `profile: lightweight`로 전환 가능 (config.toml의 가벼운 모델 프로필)
   - 작업 성격상 다른 모델이 필요하면 brief.md에 명시
 - **gemini**: 백엔드 = Antigravity **`agy` CLI**(`_shared/backends.json` 정본, 디스패처 `call_worker.sh`). 기본 `gemini-3.1-pro-high`(agy에선 정상 — 옛 프록시 `400 INVALID_ARGUMENT`은 비해당), 빠른 경로 `gemini-3-flash`/`pro-low`, 폴백 없음(api 슬롯 미구현·비활성, D11). 옛 `mcp__gemini-pro__*` 프록시 브리지·CLI 래퍼 `mcp__gemini__*`는 **폐기**. agy 모델은 전역·계정단위(`/model`)라 per-call 핀 불가 → gemini 전용 전역을 pro-high로 둔다. 근거: `_shared/learnings.md` [2026-06-02] · `design-basis.md` D4.

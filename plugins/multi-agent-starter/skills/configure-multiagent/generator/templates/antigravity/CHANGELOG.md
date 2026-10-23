@@ -2,6 +2,13 @@
 
 이 파일은 multi-agent-starter (Antigravity flavor) orchestration 시스템의 주요 변경을 기록한다.
 
+## [0.5.0] - 2026-10-23
+
+### Changed
+- codex-main·codex-critic 인자 계약 정렬: `codex exec --sandbox <workspace-write|read-only> -c approval_policy=never -`
+  (brief stdin, `cwd_policy: task` = cwd `tasks/<task>/`, 외부 쓰기 4조건 때만 target_repo). 종전엔 sandbox 미지정·cwd=루트.
+- 디스패처 공유본 갱신(`--out` 요약, 진행 한 줄, codex cwd git 사전 점검).
+
 ## [0.4.0] - 2026-09-06
 
 ### Added

@@ -15,6 +15,7 @@ flavor 템플릿(claude | codex | antigravity)을 대상 폴더에 복사한다.
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import shutil
 import subprocess
@@ -112,6 +113,40 @@ def preserve_instruction(target: Path, flavor: str, old_text: str | None, dry: b
     return len(blocks)
 
 
+def drop_codex_mcp(target: Path, dry: bool) -> bool:
+    """update 모드: 옛 설치본 .mcp.json의 codex mcp-server 등록 제거(D15 — codex-cli 0.154.0+엔
+    `codex mcp-server`가 없어 세션 시작 실패 알림만 남는다). 원본은 .mcp.json.multiagent-bak 백업.
+    다른 서버는 그대로 두고, codex만 있던 파일이면 삭제. 반환값 = 제거했는지."""
+    mcp = target / ".mcp.json"
+    if not mcp.is_file():
+        return False
+    raw = mcp.read_text(encoding="utf-8")
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        return False  # 사용자 파일이 깨져 있으면 손대지 않음
+    servers = data.get("mcpServers") if isinstance(data, dict) else None
+    codex = servers.get("codex") if isinstance(servers, dict) else None
+    if not (isinstance(codex, dict) and "mcp-server" in (codex.get("args") or [])):
+        return False
+    if not dry:
+        (target / ".mcp.json.multiagent-bak").write_text(raw, encoding="utf-8")
+        del servers["codex"]
+        if not servers and set(data) == {"mcpServers"}:
+            mcp.unlink()
+        else:
+            mcp.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return True
+
+
+def in_git_repo(path: Path) -> bool:
+    try:
+        return subprocess.run(["git", "-C", str(path), "rev-parse", "--is-inside-work-tree"],
+                              capture_output=True).returncode == 0
+    except OSError:  # git 미설치
+        return False
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="MultiAgent 시스템 생성기 (결정적 스캐폴더)")
     ap.add_argument("--flavor", choices=FLAVORS, help="claude | codex | antigravity (생략 시 메뉴)")
@@ -155,6 +190,10 @@ def main() -> None:
         print(f"  {prefix}기존 {INSTRUCTION_FILE[flavor]} 백업: "
               f"{INSTRUCTION_FILE[flavor]}.multiagent-bak (store 블록 {kept}개 재부착)")
 
+    if flavor == "claude" and drop_codex_mcp(target, dry=args.dry_run):
+        print(f"  {prefix}옛 .mcp.json의 codex mcp-server 등록 제거(codex exec 기본 — "
+              f"원본 .mcp.json.multiagent-bak)")
+
     validate = SCRIPT_DIR / "validate.py"
     if not args.no_validate and not args.dry_run and validate.exists():
         print("\n  validate.py 실행...")
@@ -164,6 +203,9 @@ def main() -> None:
         if rc != 0:
             sys.exit(f"[warn] validate가 문제를 보고했습니다 (exit {rc})")
 
+    if flavor in ("claude", "antigravity") and not args.dry_run and not in_git_repo(target):
+        print(f"\n  [안내] 코덱스 워커(codex exec)는 git 저장소 안에서만 돈다 — "
+              f"먼저: cd {target} && git init")
     print(f"\n  완료. 다음: cd {target} 후 해당 도구({flavor}) 실행.")
 
 

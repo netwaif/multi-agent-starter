@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # call_worker.sh — backends.json 디스패처 (cli/api 전용).
 # native/mcp는 오케스트레이터가 직접 호출(디스패처 비경유).
-# 사용: call_worker.sh <role> <brief-file> [payload-file]
+# 사용: call_worker.sh [--out <envelope-file>] <role> <brief-file> [payload-file]
+#   --out(선택): envelope(JSON)을 파일에 쓰고 stdout에는 사람이 읽는 요약(상태·시간·워커 최종 응답)만 출력.
+#     오케스트레이터 화면용 — 종료코드는 동일. 진행 상황(시작·종료 한 줄)은 항상 stderr.
 #   payload-file(선택): brief 한도(1200자)와 별도인 동봉 자료(예: sources/gemini-packet.md).
 #   디스패처가 brief 뒤에 결합해 전달 — brief 본문 inline 금지 규칙과 충돌 없이 대용량 자료 전달.
 #   미리보기: call_worker.sh --merged-preview <brief-file> <payload-file>  (백엔드 호출 없이 결합 결과 출력)
@@ -19,7 +21,8 @@ mktmpd() { local t; t="$(mktemp -d)"; _TMPS+=("$t"); printf '%s' "$t"; }
 
 die() { echo "call_worker: $1" >&2; exit "${2:-1}"; }
 
-PREVIEW=0
+PREVIEW=0; OUTFILE=""
+if [ "${1:-}" = "--out" ]; then OUTFILE="${2:-}"; [ -n "$OUTFILE" ] || die "--out 뒤에 파일 경로 필요" 64; shift 2; fi
 if [ "${1:-}" = "--merged-preview" ]; then PREVIEW=1; shift; set -- "_preview" "$@"; fi
 
 ROLE="${1:-}"; BRIEF="${2:-}"; PAYLOAD="${3:-}"
@@ -83,9 +86,26 @@ done < <(jq -r '.fallbacks[]?.api.required_env[]? // empty' <<<"$rec")
 
 redact() { sed -E 's/[A-Za-z0-9_-]{32,}/[REDACTED]/g'; }
 
+# 최종 envelope 출력: 기본=stdout에 JSON. --out이면 파일에 JSON + stdout에 요약.
+emit() {  # emit <envelope-json>
+  local e="$1" n
+  if [ -z "$OUTFILE" ]; then printf '%s\n' "$e"; return 0; fi
+  mkdir -p -- "$(dirname -- "$OUTFILE")"; printf '%s\n' "$e" >"$OUTFILE"
+  jq -r --arg r "$ROLE" '"[call_worker] \($r) 결과: \(.status) (exit \(.exit_code), \(.duration_s)s, fallback \(if .fallback_used then "사용" else "없음" end), scope \(.scope_check // "-"))"' <<<"$e"
+  echo "envelope: $OUTFILE"
+  n="$(jq -r '.stdout' <<<"$e" | wc -l | tr -d ' ')"
+  echo "──── 워커 최종 응답 ────"
+  jq -r '.stdout' <<<"$e" | tail -n 60
+  [ "$n" -gt 60 ] && echo "… (${n}줄 중 마지막 60줄 — 전문은 envelope .stdout)"
+  if [ "$(jq -r .status <<<"$e")" != "ok" ]; then
+    echo "──── stderr 끝 15줄 ────"; jq -r '.stderr_sanitized' <<<"$e" | tail -n 15
+  fi
+  return 0
+}
+
 # 단일 backend 실행 → envelope(JSON)을 stdout, exit code 반환
 run_backend() {
-  local spec="$1" ctype bmode tmo cwdp model wd out err errd rc start dur
+  local spec="$1" ctype bmode tmo cwdp model wd sroot="" out err errd rc start dur
   ctype="$(jq -r '.call_type' <<<"$spec")"
   model="$(jq -r '.model // "?"' <<<"$spec")"
   case "$ctype" in
@@ -99,12 +119,18 @@ run_backend() {
 
   case "$cwdp" in
     isolated_tmp) wd="$(mktmpd)";;
+    # task: none/tasks-only는 cwd=tasks/<task>/(workspace-write 샌드박스가 작업 폴더 밖 쓰기를 막음),
+    #       외부 쓰기 승인(write_scope 패턴)일 때만 target_repo. scope 검사 기준(sroot)은 루트/target_repo.
+    task)         wd="$ROOT/tasks/$GATE_TASK"; sroot="$ROOT"
+                  case "$GATE_SCOPE" in none|tasks-only) ;; *) [ "$GATE_REPO" != "-" ] && { wd="$GATE_REPO"; sroot="$GATE_REPO"; };; esac
+                  [ -d "$wd" ] || { wd="$ROOT"; sroot="$ROOT"; };;
     # target: 외부 쓰기 승인(write_scope 패턴)이 있을 때만 brief의 target_repo(gate가 존재 보장). none/tasks-only는 항상 $ROOT.
     #         환경변수 fallback 없음(잔존 env로 승인 없는 repo에서 실행되는 것 방지).
     target)       wd="$ROOT"
                   case "$GATE_SCOPE" in none|tasks-only) ;; *) [ "$GATE_REPO" != "-" ] && wd="$GATE_REPO";; esac;;
     *)            wd="$ROOT";;
   esac
+  [ -n "$sroot" ] || sroot="$wd"
 
   local -a cmd=()
   if [ "$ctype" = "cli" ]; then
@@ -131,6 +157,8 @@ run_backend() {
         cmd=("${_nc[@]}")
       elif ! command -v git >/dev/null 2>&1; then
         die "codex 워커는 git이 필요합니다. git 설치 후 재시도하거나, 위험을 감수하면 MULTIAGENT_CODEX_SKIP_GIT=1 로 우회하세요." 8
+      elif ! git -C "$wd" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        die "codex 워커는 git 저장소 안에서 실행됩니다(cwd=$wd). 설치 폴더에서 'git init' 후 재시도하거나, 위험을 감수하면 MULTIAGENT_CODEX_SKIP_GIT=1 로 우회하세요." 8
       fi
     fi
   else
@@ -158,15 +186,18 @@ run_backend() {
   out="$(mktmp)"; err="$(mktmp)"; errd="$(mktmp)"
   # 실행 전 스냅샷(사후 scope_check용). git repo 아니면 검사 불가(skipped). git repo인데 스냅샷 실패면 fail-closed로 호출 거부.
   local snap="" scope_state="skipped"
-  if git -C "$wd" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  if git -C "$sroot" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     snap="$(mktmp)"
-    if ! bash "$SCRIPT_DIR/scope_check.sh" --snapshot "$wd" >"$snap" 2>"$snap.err"; then
+    if ! bash "$SCRIPT_DIR/scope_check.sh" --snapshot "$sroot" >"$snap" 2>"$snap.err"; then
       jq -n --arg model "$model" --arg backend "$ctype" --rawfile e "$snap.err" \
         '{status:"scope_error", exit_code:12, backend:$backend, model:$model, duration_s:0, stdout:"",
           stderr_sanitized:("실행 전 스냅샷 실패 — scope 검사 불가하므로 호출 거부: " + $e), scope_check:"error", scope_violations:[]}'
       rm -f "$snap.err"; return 12
     fi; rm -f "$snap.err"
   fi
+  local shown="" _a; for _a in "${cmd[@]}"; do   # 진행 표시: 긴 인자(brief 본문 등)는 <brief>로 가림
+    case "$_a" in *$'\n'*) _a="<brief>";; esac; [ "${#_a}" -gt 60 ] && _a="<brief>"; shown+=" $_a"; done
+  echo "[call_worker] $ROLE 시작 —${shown} (cwd=${wd#"$ROOT"/}, timeout ${tmo}s)" >&2
   start=$(date +%s)
   rc=0
   (
@@ -189,13 +220,14 @@ run_backend() {
   local viol="[]"
   if [ -n "$snap" ]; then
     local vf src; vf="$(mktmp)"; scope_state="ok"
-    if bash "$SCRIPT_DIR/scope_check.sh" "$wd" "$GATE_SCOPE" "$snap" "$GATE_TASK" >"$vf" 2>"$vf.err"; then :; else src=$?
+    if bash "$SCRIPT_DIR/scope_check.sh" "$sroot" "$GATE_SCOPE" "$snap" "$GATE_TASK" >"$vf" 2>"$vf.err"; then :; else src=$?
       if [ "$src" -eq 10 ]; then viol="$(jq -R . <"$vf" | jq -s .)"; status="scope_violation"; rc=10; scope_state="violation"
       else status="scope_error"; rc=10; scope_state="error"; cat "$vf.err" >>"$err"; fi
       rm -f "$vf.err"
     fi
   fi
 
+  echo "[call_worker] $ROLE 종료 — $status (exit $rc, ${dur}s)" >&2
   redact <"$err" >"$errd"
   jq -n --arg status "$status" --argjson exit "$rc" \
         --rawfile stdout "$out" --rawfile stderr "$errd" \
@@ -208,12 +240,12 @@ run_backend() {
 # primary → 실패 시 fallbacks 순차 (set -e 우회: || prc=$?)
 prc=0; env_primary="$(run_backend "$rec")" || prc=$?
 if [ "$prc" -eq 0 ]; then
-  jq -n --argjson e "$env_primary" '$e + {fallback_used:false}'
+  emit "$(jq -n --argjson e "$env_primary" '$e + {fallback_used:false}')"
   exit 0
 fi
 # scope 위반(10)/검사 불가(12)는 재시도 대상이 아닌 최종 실패: 폴백 없이 해당 envelope 보존 (primary·fallback 동일)
 if [ "$prc" -eq 10 ] || [ "$prc" -eq 12 ]; then
-  jq -n --argjson e "$env_primary" '$e + {fallback_used:false}'
+  emit "$(jq -n --argjson e "$env_primary" '$e + {fallback_used:false}')"
   exit "$prc"
 fi
 nf="$(jq '.fallbacks | length' <<<"$rec")"
@@ -222,14 +254,17 @@ while [ "$i" -lt "${nf:-0}" ]; do
   fb="$(jq -c --argjson i "$i" '.fallbacks[$i]' <<<"$rec")"
   frc=0; env_fb="$(run_backend "$fb")" || frc=$?
   if [ "$frc" -eq 0 ]; then
-    jq -n --argjson e "$env_fb" '$e + {fallback_used:true}'
+    emit "$(jq -n --argjson e "$env_fb" '$e + {fallback_used:true}')"
     exit 0
   fi
   if [ "$frc" -eq 10 ] || [ "$frc" -eq 12 ]; then
-    jq -n --argjson e "$env_fb" '$e + {fallback_used:true}'
+    emit "$(jq -n --argjson e "$env_fb" '$e + {fallback_used:true}')"
     exit "$frc"
   fi
   i=$((i+1))
 done
-jq -n --argjson e "${env_fb:-$env_primary}" '$e + {fallback_used:true}'
+# 사전 검사 die(git 없음 등)는 envelope 없이 끝나므로 최소 envelope로 대체(사유는 위 stderr)
+last="${env_fb:-$env_primary}"
+[ -n "$last" ] || last="$(jq -n --argjson rc "$prc" '{status:"error", exit_code:$rc, backend:"-", model:"-", duration_s:0, stdout:"", stderr_sanitized:"디스패처 사전 검사 실패 — 사유는 stderr의 call_worker: 줄"}')"
+emit "$(jq -n --argjson e "$last" --argjson fb "$( [ "${nf:-0}" -gt 0 ] && echo true || echo false )" '$e + {fallback_used:$fb}')"
 exit 1

@@ -21,7 +21,8 @@
 | INV11 | 재진입 프로토콜이 orchestrator-rules.md §3 **와** CLAUDE.md Task Lifecycle 포인터에 **둘 다** 존재. routing.md 토폴로지표에 4패턴(Pipeline/Fan-out·in/Expert Pool/Producer-Reviewer) 모두 존재하고, Supervisor·Hierarchical은 "배제" 줄에만 등장(채택표 행으로 등장 금지) | D6 위반 — 재진입/패턴 규정 유실 또는 배제 패턴 부활 |
 | INV12 | 카파시 4원칙: CLAUDE.md에 "운영 원칙 (Operating Principles)" 섹션 존재, _templates/worker-brief.md에 "Worker 행동 규약" 고정 블록 존재, **블록 안에 사용자질문 지시(질문/ask) 없음**, worker-result.md 체크리스트에 표면화 항목 존재 | D8 위반 — 층별 적용 붕괴(워커 one-shot 구조와 모순) 또는 워커 규약 유실 |
 | INV14 | 집행층 존재·배선: `_shared/adapters/gate.sh`·`scope_check.sh`·`_shared/reentry-check.sh` 존재(bash 경유 호출이라 실행권한 불요), `call_worker.sh`가 `gate.sh`·`scope_check.sh`를 호출, CLAUDE.md에 `gate.sh`·`reentry-check.sh` 포인터, orchestrator-rules §3에 `reentry-check.sh` | D14 위반 — 집행 스크립트 유실 또는 디스패처·지침 배선 끊김(산문만 남아 fail-open 회귀) |
-| INV13 | backends.json 실행계약 정합: codex-main sandbox = `workspace-write`(MCP·CLI 폴백 모두), codex-critic = `read-only`(모두), gemini `fallbacks` = 빈 배열(미구현 api 슬롯 비활성) | D11 위반 — 실행 정본↔권위문서 드리프트 재발 또는 거짓 안전신호(미구현 폴백) 부활 |
+| INV13 | backends.json 실행계약 정합: codex-main·codex-critic = `call_type: cli`·`codex exec`·`-c approval_policy=never`·brief stdin(`-`)·`cwd_policy: task`·`mcp` 레코드/폴백 없음, sandbox = codex-main `workspace-write` / codex-critic `read-only`. gemini `fallbacks` = 빈 배열(미구현 api 슬롯 비활성) | D11·D15 위반 — 실행 정본↔권위문서 드리프트 재발, 폐기 MCP 경로 부활 또는 거짓 안전신호(미구현 폴백) 부활 |
+| INV15 | 폐기된 codex MCP 경로 부재: `.mcp.json`(있으면)에 `mcp-server` 등록 없음, routing.md·task-folder.md·CLAUDE.md에 `mcp__codex__` 호출 없음 | D15 위반 — 세션 시작 MCP 실패 알림·호출마다 실패→폴백 재발 (codex-cli 0.154.0+엔 `codex mcp-server` 없음) |
 
 > ※ **매뉴얼(외부 repo) 비교 항목은 유지보수자 전용(optional)**. 공개 설치본에는 매뉴얼이 없으므로 핵심 점검(INV1–4·6–12)은 시스템 파일 자체 일관성만 본다. INV5와 각 INV의 매뉴얼 측 일치 검사, INV12e/f의 3 flavor 교차 점검은 아래 스크립트의 optional 블록에서 해당 자산이 있을 때만 실행된다.
 
@@ -30,7 +31,7 @@
 정본 러너 = `_shared/check-invariants.sh` (exit-code 판정 — 2026-07-24 수동 grep 나열에서 전환, 근거: 자체 리뷰 공통 발견 C2 "false PASS").
 
 ```bash
-bash _shared/check-invariants.sh              # 핵심 INV1~13 전부 판정. 하나라도 FAIL → exit 비0 (커밋 금지)
+bash _shared/check-invariants.sh              # 핵심 INV1~15 전부 판정. 하나라도 FAIL → exit 비0 (커밋 금지)
 bash _shared/check-invariants.sh --self-test  # 러너 자체 검증: 불변식을 하나씩 깨뜨린 fixture 사본이 FAIL하는지
 ```
 

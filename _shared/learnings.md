@@ -142,3 +142,9 @@
 - **게이트는 오케스트레이터 자신에게도 걸린다**: 2차 리뷰 brief(1356자·241단어)를 gate.sh가 거부 → 줄여서 통과. 규칙이 코드가 되면 "이번만 예외"가 사라진다 — 그게 목적.
 - **문자열 존재 검사는 배선 검사가 아니다**: INV14를 `grep 'gate.sh'`로 하면 헤더 주석만 남아도 통과. 비주석 줄의 실제 호출 패턴을 검사하고, self-test는 **호출 줄만 제거**하는 변이로 검증.
 **worker**: codex-critic(astra) 2회(MCP, read-only) · orchestrator 구현
+
+## codex 워커 — `codex mcp-server` 폐지, `codex exec` 기본 전환 (2026-10-23, HACKERS-03-CODEX-EXEC)
+- **사실**: codex-cli 0.163.0에 `codex mcp-server`가 없다(8-24 폐지 예고 → 0.154.0 무렵 제거). `.mcp.json`의 codex 등록은 세션 시작 MCP 실패 알림, `mcp__codex__codex` 호출은 매번 실패→exec 폴백이었다.
+- **조치**: codex-main·codex-critic primary = `codex exec`(디스패처, sandbox·approval never·cwd=tasks/<task>/ 계약 그대로), `.mcp.json` 제거, 폴백 없음(D15).
+- **일반 교훈**: 외부 CLI 서브커맨드를 "정상 경로"로 삼으면 벤더 폐지 일정이 곧 시스템 장애 일정이다 — 폐지 예고를 보면 폴백을 primary로 승격하고 폐기 경로는 INV로 재유입을 막는다. Claude Code Bash 도구는 기본 2분·최대 10분이므로 워커 timeout은 그 상한보다 짧게 둬야 결과(envelope)가 잘리지 않는다.
+**worker**: orchestrator 구현 · 실제 확인 codex-main 1회 + codex-critic 1회(exec)

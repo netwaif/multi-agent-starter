@@ -16,75 +16,47 @@
     },
     "codex-main": {
       "model": "codex-default",
-      "call_type": "mcp",
-      "mcp": {
-        "tool": "mcp__codex__codex",
-        "args_template": {
-          "prompt": "@brief_content",
-          "sandbox": "workspace-write",
-          "approval-policy": "never"
-        }
-      },
-      "brief_mode": "content",
+      "call_type": "cli",
+      "brief_mode": "stdin",
+      "timeout": 540,
       "approval_class": "worker",
-      "result_capture": "tool-return",
-      "timeout": 300,
-      "fallbacks": [
-        {
-          "model": "codex-default",
-          "call_type": "cli",
-          "brief_mode": "stdin",
-          "timeout": 300,
-          "approval_class": "worker",
-          "result_capture": "envelope",
-          "cwd_policy": "target",
-          "cli": {
-            "command": "codex",
-            "args_template": [
-              "exec",
-              "--sandbox",
-              "workspace-write",
-              "-"
-            ]
-          }
-        }
-      ]
+      "result_capture": "envelope",
+      "cwd_policy": "task",
+      "cli": {
+        "command": "codex",
+        "args_template": [
+          "exec",
+          "--sandbox",
+          "workspace-write",
+          "-c",
+          "approval_policy=never",
+          "-"
+        ]
+      },
+      "fallbacks": [],
+      "fallback_note": "codex mcp-server는 codex-cli 0.154.0 무렵 제거됨 — MCP 경로·폴백 없음(design-basis D15). timeout 540s = Claude Code Bash 도구 상한(600s)보다 짧게 두어 envelope가 항상 돌아오게 함."
     },
     "codex-critic": {
       "model": "codex-default",
-      "call_type": "mcp",
-      "mcp": {
-        "tool": "mcp__codex__codex",
-        "args_template": {
-          "prompt": "@brief_content",
-          "sandbox": "read-only",
-          "approval-policy": "never"
-        }
-      },
-      "brief_mode": "content",
+      "call_type": "cli",
+      "brief_mode": "stdin",
+      "timeout": 540,
       "approval_class": "worker",
-      "result_capture": "tool-return",
-      "timeout": 300,
-      "fallbacks": [
-        {
-          "model": "codex-default",
-          "call_type": "cli",
-          "brief_mode": "stdin",
-          "timeout": 300,
-          "approval_class": "worker",
-          "result_capture": "envelope",
-          "cwd_policy": "target",
-          "cli": {
-            "command": "codex",
-            "args_template": [
-              "exec",
-              "--sandbox",
-              "read-only",
-              "-"
-            ]
-          }
-        }
-      ]
+      "result_capture": "envelope",
+      "cwd_policy": "task",
+      "cli": {
+        "command": "codex",
+        "args_template": [
+          "exec",
+          "--sandbox",
+          "read-only",
+          "-c",
+          "approval_policy=never",
+          "-"
+        ]
+      },
+      "fallbacks": [],
+      "fallback_note": "codex mcp-server는 codex-cli 0.154.0 무렵 제거됨 — MCP 경로·폴백 없음(design-basis D15). timeout 540s = Claude Code Bash 도구 상한(600s)보다 짧게 두어 envelope가 항상 돌아오게 함."
     },
     "gemini": {
       "model": "gemini-3.1-pro-high",

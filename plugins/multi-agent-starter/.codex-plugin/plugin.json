@@ -1,6 +1,6 @@
 {
   "name": "multi-agent-starter",
-  "version": "3.6.0",
+  "version": "3.7.0",
   "description": "파일 기반 멀티에이전트 오케스트레이션 시스템 생성기. Codex/Claude에서 \"멀티 에이전트 시스템 구성해줘\"로 시스템을 대상 폴더에 결정적으로 생성 (flavor: claude | codex | antigravity).",
   "author": {
     "name": "netwaif",

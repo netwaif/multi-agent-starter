@@ -23,15 +23,19 @@
     "codex-main": {
       "model": "codex-default",
       "call_type": "cli",
-      "brief_mode": "content",
+      "brief_mode": "stdin",
       "cli": {
         "command": "codex",
         "args_template": [
           "exec",
-          "@brief_content"
+          "--sandbox",
+          "workspace-write",
+          "-c",
+          "approval_policy=never",
+          "-"
         ]
       },
-      "cwd_policy": "repo_root",
+      "cwd_policy": "task",
       "approval_class": "worker",
       "result_capture": "envelope",
       "timeout": 600
@@ -39,15 +43,19 @@
     "codex-critic": {
       "model": "codex-default",
       "call_type": "cli",
-      "brief_mode": "content",
+      "brief_mode": "stdin",
       "cli": {
         "command": "codex",
         "args_template": [
           "exec",
-          "@brief_content"
+          "--sandbox",
+          "read-only",
+          "-c",
+          "approval_policy=never",
+          "-"
         ]
       },
-      "cwd_policy": "repo_root",
+      "cwd_policy": "task",
       "approval_class": "worker",
       "result_capture": "envelope",
       "timeout": 600

@@ -100,7 +100,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
    - If the user already provided a path, do not ask again.
 4. Record explicit worker approvals in `task.md` before any worker call.
 5. Write each worker's brief **exactly at `tasks/<task>/workers/<role>/brief.md`** (Korean <= 1200 chars / English <= 240 words). Use a per-worker folder — do NOT flatten to `<role>_brief.md`.
-6. Run the approved worker and save the original response **at `tasks/<task>/workers/<role>/result.md`** (same per-worker folder). **Pre-call gate is mandatory**: calls through the dispatcher (`call_worker.sh`) are gated automatically. For workers called natively or via MCP, run `bash _shared/adapters/gate.sh <brief>` first, proceed only on `GATE_OK`, and record that line in the `log.md` `[WORKER_CALL]` entry. For external-write calls (pattern `write_scope`) via MCP: before the call run `bash _shared/adapters/scope_check.sh --snapshot <target_repo> > tasks/<task>/artifacts/.scope-before`; after the call, regardless of success, run `bash _shared/adapters/scope_check.sh <target_repo> <write_scope> tasks/<task>/artifacts/.scope-before <task>` and only then decide whether to accept the result.
+6. Run the approved worker and save the original response **at `tasks/<task>/workers/<role>/result.md`** (same per-worker folder). **Pre-call gate is mandatory**: calls through the dispatcher (`call_worker.sh`) are gated automatically. For workers called natively (not through the dispatcher), run `bash _shared/adapters/gate.sh <brief>` first, proceed only on `GATE_OK`, and record that line in the `log.md` `[WORKER_CALL]` entry. For a native external-write call (pattern `write_scope`): before the call run `bash _shared/adapters/scope_check.sh --snapshot <target_repo> > tasks/<task>/artifacts/.scope-before`; after the call, regardless of success, run `bash _shared/adapters/scope_check.sh <target_repo> <write_scope> tasks/<task>/artifacts/.scope-before <task>` and only then decide whether to accept the result.
 7. Execute the `result.md` Verification Checklist.
 8. Append verification results to `log.md` with `[VERIFICATION]`. When the task is finished, update `status` in `task.md` to `done`.
 9. On completion, append reusable lessons only when they are genuinely reusable:
@@ -130,7 +130,7 @@ If `context.md` exceeds the limit, append history to `log.md`, then keep only th
 ## Approval Gate
 
 - Never call a worker that is missing from `workers_approved`.
-- **Enforcement**: `_shared/adapters/gate.sh` decides fail-closed (G2 approval · G3 `[APPROVAL]` log entry · G1 brief location · G4 length limit · G5 external-write conditions · G0 interactive session). Automatic through the dispatcher; run it before native/MCP calls (Task Lifecycle step 6).
+- **Enforcement**: `_shared/adapters/gate.sh` decides fail-closed (G2 approval · G3 `[APPROVAL]` log entry · G1 brief location · G4 length limit · G5 external-write conditions · G0 interactive session). Automatic through the dispatcher; run it before native calls (Task Lifecycle step 6).
 - Worker approval is task-specific and includes purpose and any external write scope.
 - Codex Orchestrator internal reasoning does not require approval.
 - External paid model tools still require explicit user approval even if the task is already created.

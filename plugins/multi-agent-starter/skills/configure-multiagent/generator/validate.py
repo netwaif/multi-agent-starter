@@ -23,7 +23,7 @@ FLAVOR = {
         "instruction": "CLAUDE.md",
         "main_worker": "claude-main",          # routing에 있어야
         "forbidden_worker": None,
-        "extra_files": [".claude/agents/claude-main.md", ".mcp.json"],
+        "extra_files": [".claude/agents/claude-main.md"],
     },
     "codex": {
         "instruction": "AGENTS.md",
@@ -187,6 +187,16 @@ def run_checks(target: Path, flavor: str) -> list[tuple[bool, str]]:
     k_ok, k_why = _knot_check(instr_txt)
     check(k_ok, f"C10 knot 관리블록 — {k_why}")
 
+    # C11 codex 워커 = codex exec (D15). codex mcp-server는 codex-cli 0.154.0 무렵 제거 — 등록·호출 잔재 금지.
+    c11 = _codex_exec_problems(read(target, "_shared/backends.json"))
+    tf = read(target, "_templates/task-folder.md") or ""
+    if any("mcp__codex__" in t for t in (routing, tf, instr_txt)):
+        c11.append("routing/task-folder/지침에 mcp__codex__ 호출 잔존")
+    mcp = read(target, ".mcp.json")
+    if mcp is not None and "mcp-server" in mcp:
+        c11.append(".mcp.json에 codex mcp-server 등록 잔존")
+    check(not c11, f"C11 codex 워커 codex exec·MCP 잔재 없음 (문제: {c11[0] if c11 else '-'})")
+
     # (구 C12 요금가드 배선 검증은 v3.2.0부터 loadout doctor 소관 — 정본 이관)
 
     return results
@@ -239,6 +249,33 @@ def _backend_record_problems(rec: dict, where: str, target: Path, *, is_fallback
     if not is_fallback:
         for i, fb in enumerate(rec.get("fallbacks", []) or []):
             p += _backend_record_problems(fb, f"{where}.fallback[{i}]", target, is_fallback=True)
+    return p
+
+
+_CODEX_SANDBOX = {"codex-main": "workspace-write", "codex-critic": "read-only"}
+
+
+def _codex_exec_problems(raw: str | None) -> list[str]:
+    """C11: backends의 codex-main/codex-critic(있는 것만 — codex flavor의 native codex-main은 오케스트레이터
+    자신이라 제외)이 `codex exec --sandbox <계약값>`·approval never·폴백/MCP 없음인지."""
+    try:
+        workers = (json.loads(raw or "{}").get("workers") or {})
+    except Exception as e:  # noqa: BLE001
+        return [f"backends 파싱 실패: {e}"]
+    p: list[str] = []
+    for role, sb in _CODEX_SANDBOX.items():
+        w = workers.get(role)
+        if not isinstance(w, dict) or w.get("call_type") == "native":
+            continue
+        args = (w.get("cli") or {}).get("args_template") or []
+        if w.get("call_type") != "cli" or (w.get("cli") or {}).get("command") != "codex" or args[:1] != ["exec"]:
+            p.append(f"{role}: codex exec CLI 아님"); continue
+        if "--sandbox" not in args or args[args.index("--sandbox") + 1:][:1] != [sb]:
+            p.append(f"{role}: --sandbox {sb} 아님")
+        if "approval_policy=never" not in args:
+            p.append(f"{role}: approval_policy=never 없음")
+        if "mcp" in w or w.get("fallbacks"):
+            p.append(f"{role}: mcp 레코드/폴백 잔존")
     return p
 
 

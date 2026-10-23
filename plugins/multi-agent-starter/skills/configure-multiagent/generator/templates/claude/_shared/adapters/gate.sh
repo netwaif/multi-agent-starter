@@ -2,7 +2,7 @@
 # gate.sh — worker 호출 사전 게이트 (fail-closed). 벤더중립(bash만).
 # 사용: gate.sh [--json] <brief-file>
 #   task·role은 brief 경로(tasks/<task>/workers/<role>/brief.md)에서 도출한다.
-#   call_worker.sh가 자동 호출. native/mcp 워커(claude-main·codex MCP)는 오케스트레이터가 호출 전 직접 실행.
+#   call_worker.sh가 자동 호출(codex·gemini 등 cli/api). native 워커(claude-main)는 오케스트레이터가 호출 전 직접 실행.
 # 검사: G0 인터랙티브 세션(D5) / G1 brief 위치 / G2 workers_approved / G3 log [APPROVAL]
 #       G4 brief 한도(1200자 또는 240단어) / G5 외부 쓰기 조건(write_scope 패턴 시 target_repo·승인·로그)
 # 출력: 통과 → stdout "GATE_OK task=<t> role=<r> target_repo=<p|-> write_scope=<s>" exit 0

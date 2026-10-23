@@ -49,6 +49,11 @@ def main() -> None:
         before = instr.read_text(encoding="utf-8")
         instr.write_text(before + "\n" + block + "\n", encoding="utf-8")
 
+        # 옛 설치본(v3.6.0 이하)의 codex MCP 등록 + 사용자 서버 1개 심기 — update가 codex만 걷어내는지(D15)
+        mcp = tgt / ".mcp.json"
+        mcp.write_text('{"mcpServers": {"codex": {"type": "stdio", "command": "codex", '
+                       '"args": ["mcp-server"]}, "mine": {"command": "x"}}}', encoding="utf-8")
+
         if init(tgt).returncode != 0:  # update 모드
             print("  FAIL update init")
             sys.exit(1)
@@ -65,6 +70,11 @@ def main() -> None:
              block in instr.read_text(encoding="utf-8")),
             ("CLAUDE.md 덮어쓰기 전 백업 생성",
              bak.is_file() and block in bak.read_text(encoding="utf-8")),
+            (".mcp.json codex mcp-server 제거·다른 서버 보존",
+             mcp.is_file() and "mcp-server" not in mcp.read_text(encoding="utf-8")
+             and '"mine"' in mcp.read_text(encoding="utf-8")),
+            (".mcp.json 원본 백업",
+             (tgt / ".mcp.json.multiagent-bak").is_file()),
         ]
         for desc, ok in checks:
             print(f"  {'PASS' if ok else 'FAIL'} {desc}")

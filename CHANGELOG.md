@@ -5,6 +5,27 @@
 (정본: `generator/templates/{claude,codex}/CHANGELOG.md`)를 참조한다.
 형식은 [Keep a Changelog](https://keepachangelog.com/), 버전은 [Semantic Versioning](https://semver.org/lang/ko/)을 따른다.
 
+## [3.7.0] - 2026-10-23
+
+### Changed
+- **코덱스 워커 = `codex exec` 기본 (D15)** — `codex mcp-server`가 codex-cli 0.154.0 무렵 제거돼(설치본 0.163.0에 없음,
+  OpenAI 문서 https://developers.openai.com/fr-FR/docs/mcp-server) claude flavor의 codex-main·codex-critic을 처음부터
+  디스패처 경유 `codex exec --sandbox <workspace-write|read-only> -c approval_policy=never -`(brief stdin)로 부른다.
+  cwd=`tasks/<task>/`(backends `cwd_policy: task`, 외부 쓰기 4조건 때만 target_repo). gate 실행 순서·로그 태그 그대로.
+  MCP 경로·exec 폴백 중복 등록 없음. timeout 540s(Claude Code Bash 상한 600s보다 짧게).
+- **디스패처** — `--out <envelope-file>`(파일엔 envelope, 화면엔 상태·소요·최종 응답 요약), stderr 시작·종료 한 줄,
+  codex cwd가 git 저장소가 아니면 exit 8로 즉시 안내, 사전 검사 실패에도 envelope 반환.
+- **claude flavor 1.6.0 / codex flavor 0.7.0 / antigravity flavor 0.5.0** — 위 디스패처 동봉. antigravity의 codex 2역할도
+  같은 인자 계약(sandbox·approval never·stdin·cwd_policy task)으로 정렬.
+
+### Removed
+- 생성 폴더의 `.mcp.json`(codex `mcp-server` 등록)과 지침·routing·task-folder의 `mcp__codex__codex` 정상 경로 서술.
+  update 모드는 옛 `.mcp.json`의 codex 등록만 걷어낸다(다른 서버 보존, 원본 `.mcp.json.multiagent-bak`).
+
+### Added
+- INV13 개정(codex exec 계약) · INV15(폐기 codex MCP 경로 부재) · validate C11 · `tests/dispatcher/test_codex_exec.sh`,
+  `test_update_preserve.py`에 `.mcp.json` 정리 검사. 생성기 끝에 git 저장소 아님 안내.
+
 ## [3.6.0] - 2026-09-06
 
 ### Added

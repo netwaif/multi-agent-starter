@@ -3,6 +3,17 @@
 이 파일은 MultiAgent orchestration 시스템의 주요 변경을 기록한다.
 형식은 [Keep a Changelog](https://keepachangelog.com/), 버전은 [Semantic Versioning](https://semver.org/lang/ko/)을 따른다.
 
+## [1.6.0] - 2026-10-23
+
+### Changed
+- **codex-main·codex-critic = `codex exec` (D15)** — `codex mcp-server`가 codex-cli 0.154.0 무렵 제거돼 MCP 경로를 없앴다.
+  디스패처 `call_worker.sh --out tasks/<task>/workers/<role>/envelope.json <role> <brief>`로 부르고(Claude Code Bash
+  `timeout: 600000`), 인자 계약은 그대로(codex-main `workspace-write`, codex-critic `read-only`, 승인 never, cwd=`tasks/<task>/`).
+- 디스패처: `--out` 요약 출력, 진행 한 줄(stderr), codex cwd git 저장소 사전 점검(exit 8).
+
+### Removed
+- `.mcp.json`(codex `mcp-server` 등록). INV15·validate C11이 재유입을 막는다.
+
 ## [1.5.0] - 2026-09-06
 
 ### Added

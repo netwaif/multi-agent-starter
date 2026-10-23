@@ -98,7 +98,7 @@ wc -w "$ROOT/tasks/$TASK/workers/$ROLE/brief.md"   # 영문 단어수 ≤ 240
   - `model`: agent frontmatter `model: opus` 자동 적용
   - 응답 텍스트를 Orchestrator가 받아 `result.md`에 기록
 - **gemini**: `_shared/backends.json`의 `gemini`(백엔드 = Antigravity `agy` CLI, 기본 `gemini-3.1-pro-high`). 디스패처 `bash _shared/adapters/call_worker.sh gemini <brief-file>` → JSON envelope. Orchestrator가 envelope의 stdout을 `result.md`에 기록. (옛 `mcp__gemini-pro__*` 브리지 폐기)
-- **codex-main / codex-critic**: `mcp__codex__codex` MCP 도구 호출
+- **codex-main / codex-critic**: `_shared/backends.json`의 해당 항목(`codex exec` 헤드리스 — codex-main `--sandbox workspace-write`, codex-critic `--sandbox read-only`, 승인 정책 never, cwd=`tasks/<task>/`). 디스패처 `bash _shared/adapters/call_worker.sh --out tasks/<task>/workers/<role>/envelope.json <role> <brief-file>`(Bash `timeout: 600000`) → 화면에 요약, envelope `.stdout`을 `result.md`에 기록
   - `prompt`: brief.md 내용 그대로
   - `cwd`:
     - codex-main 기본: `~/VSCodeWorkspace/MultiAgent/tasks/<task>/` (작업 폴더 안에서 산출물 작성)

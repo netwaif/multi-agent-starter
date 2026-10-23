@@ -79,6 +79,12 @@ MAT_ROOT=<설치한-폴더> mat
 
 해결·보류 중인 알려진 결함은 [`KNOWN_ISSUES.md`](./KNOWN_ISSUES.md)에 추적한다.
 
+## 필요 도구
+
+- **codex CLI** — codex-main·codex-critic 백엔드. 디스패처가 `codex exec` 헤드리스로 부른다(MCP 서버 등록 없음 — `codex mcp-server`는 codex-cli 0.154.0 무렵 제거됨).
+- **git** — `codex exec`는 git 저장소 안에서만 돈다. 이 폴더가 저장소가 아니면 `git init`.
+- **jq** — 디스패처 JSON 파싱. **agy** — gemini 워커.
+
 ## 핵심 원칙
 
 | 원칙 | 강제 방식 |

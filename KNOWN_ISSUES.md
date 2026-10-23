@@ -70,7 +70,7 @@ mat의 핵심 화면 요소인 "워커 한 줄 목적"이 실제 Objective가 �
 ## KI-3 — Windows 네이티브 미지원 (gemini/api 워커가 POSIX bash 디스패처에 의존)
 
 - **상태**: 열림 / **보류** (출시 후 대응. 디스패처 Python 이식은 v2.1 로드맵)
-- **심각도**: 중간 — 생성기·파일 코어·native(claude Task)·MCP(codex) 워커는 크로스플랫폼으로 동작. 차단점은 **gemini 워커(+api 폴백)** 한정.
+- **심각도**: 중간 — 생성기·파일 코어·native(claude Task) 워커는 크로스플랫폼으로 동작. 차단점은 디스패처 경유 워커 — **gemini 워커(+api 폴백)**, 그리고 v3.7.0부터 **codex 워커**(`codex exec`도 디스패처 경유, D15).
 
 ### 증상
 
@@ -80,7 +80,7 @@ mat의 핵심 화면 요소인 "워커 한 줄 목적"이 실제 Objective가 �
 
 - `_shared/adapters/call_worker.sh`(+ `gemini_api.sh`)가 **bash·jq·timeout·mktemp·`/dev/null`** 등 POSIX 전용 요소를 사용.
 - `_shared/backends.json`의 gemini 항목도 `stdin:"/dev/null"`, `cwd_policy:"isolated_tmp"` 등 POSIX 형태.
-- native(claude)·mcp(codex)는 디스패처를 거치지 않아 영향 없음.
+- native(claude)는 디스패처를 거치지 않아 영향 없음. codex 워커는 v3.7.0부터 디스패처 경유(옛 MCP 경로는 `codex mcp-server` 제거로 폐기)라 같은 제약을 받는다.
 
 ### 우회 / 미확정
 

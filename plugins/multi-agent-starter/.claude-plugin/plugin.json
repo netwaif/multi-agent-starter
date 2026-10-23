@@ -1,6 +1,6 @@
 {
   "name": "multi-agent-starter",
-  "version": "3.6.0",
+  "version": "3.7.0",
   "description": "파일 기반 멀티에이전트 오케스트레이션 시스템 생성기. \"멀티 에이전트 시스템 구성해줘\"로 승인 게이트·작업 재진입 프로토콜·토폴로지 4패턴·불변식 자가점검을 갖춘 시스템을 대상 폴더에 결정적으로 스캐폴딩한다 (flavor: claude | codex | antigravity).",
   "author": {
     "name": "netwaif"

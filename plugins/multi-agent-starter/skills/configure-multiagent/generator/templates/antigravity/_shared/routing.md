@@ -90,7 +90,7 @@ write_scope: none | tasks-only | "src/**, tests/**"
 - **슬롯**: engineer · computer-use
 - **용도**: 대규모 구현·리팩토링 (claude-main 설계 기반 또는 단독), 코드베이스 분석, 테스트 작성·실행, diff 생성, 로컬 CLI 검증, 브라우저 조작·도구 워크플로우 자동화.
 - **결과물**: 코드, diff, 테스트 결과, CLI 출력.
-- **호출 방식**: `backends.json`의 `codex-main`(백엔드 = `codex` CLI). 호출 전 승인.
+- **호출 방식**: `backends.json`의 `codex-main`(백엔드 = `codex exec --sandbox workspace-write -c approval_policy=never -`, brief stdin, cwd=`tasks/<task>/` — 외부 쓰기 4조건 때만 target_repo). 호출 전 승인.
 - **brief 필수 필드**: 위 claude-main과 동일(`target_repo`, `write_scope`).
 - **기본 쓰기**: `tasks/<task>/` 내부. 외부 repo는 4조건 충족 시만. **금지**: `_shared/`, `_templates/`, 다른 작업 폴더.
 
@@ -100,7 +100,7 @@ write_scope: none | tasks-only | "src/**, tests/**"
 - **용도**: Antigravity Orchestrator·claude-main·codex-main 산출물의 독립 리뷰·비평. 실현 가능성, 테스트 커버리지, 사이드 이펙트, 누락 요구사항을 adversarial하게 점검한다. **Gemini 오케스트레이터와 다른 벤더(Codex)라 독립성 확보** — gemini 자기검수로 대체 금지.
 - **선행 조건**: 리뷰 대상 산출물 경로가 존재해야 한다(`claude-main`/`codex-main result.md`, Orchestrator 문서, 기존 코드 등).
 - **결과물**: 중요도별 비평 리스트, 수정 제안, 수락/보류 판단 근거.
-- **호출 방식**: `backends.json`의 `codex-critic`(백엔드 = `codex` CLI). 호출 전 승인.
+- **호출 방식**: `backends.json`의 `codex-critic`(백엔드 = `codex exec --sandbox read-only -c approval_policy=never -`, cwd=`tasks/<task>/`). 호출 전 승인.
 - **쓰기 권한**: 없음. Orchestrator가 응답을 `result.md`에 기록한다.
 - **brief 필수 필드**: `target_repo` 또는 리뷰 대상 경로, `write_scope: none`, "비평 모드" 명시.
 

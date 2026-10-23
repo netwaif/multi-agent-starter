@@ -21,7 +21,7 @@ description: Use when the user wants to set up / scaffold / install a file-based
    python3 "<이 스킬 폴더>/generator/init.py" --flavor <claude|codex|antigravity> --target "<대상폴더>" --yes
    ```
    대화형으로 진행하려면 인자 없이 실행하면 메뉴가 뜬다.
-5. **결과 보고** — `init.py`가 끝에 `validate.py`를 자동 실행한다. 그 **PASS/FAIL을 그대로 사용자에게 보고**한다. FAIL이 하나라도 있으면 "완료"라고 말하지 말 것.
+5. **결과 보고** — `init.py`가 끝에 `validate.py`를 자동 실행한다. 그 **PASS/FAIL을 그대로 사용자에게 보고**한다. FAIL이 하나라도 있으면 "완료"라고 말하지 말 것. 생성기가 "git 저장소 아님" 안내를 내면(claude·antigravity) 코덱스 워커(`codex exec`)를 쓰기 전에 대상 폴더에서 `git init`이 필요하다고 함께 알린다.
 6. **knot·요금가드 안내(선택)** — 사용자가 knot 지식 vault나 goal 요금가드를 찾으면 알린다: 두 구성의 설치는 v3.0.0부터 **loadout 카탈로그**(https://github.com/netwaif/loadout) 담당이다("CLAUDE.md 구성 골라 담아줘"). `knot` 능동 스킬(save/ingest/query/lint)은 v3.1.0부터 knot 자체 플러그인이 배포한다(마켓플레이스에 `netwaif/knot` 추가). 가드 배선 자산(claude Stop 훅·codex 워처)도 v3.2.0부터 loadout guard 품목이 전부 제공한다(codex는 `--flavor codex`).
 
 ## 동작 보장

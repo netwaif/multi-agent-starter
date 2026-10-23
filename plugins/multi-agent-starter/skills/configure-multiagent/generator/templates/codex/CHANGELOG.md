@@ -2,6 +2,12 @@
 
 이 파일은 multi-agent-starter (Codex flavor) orchestration 시스템의 주요 변경을 기록한다.
 
+## [0.7.0] - 2026-10-23
+
+### Changed
+- 디스패처 공유본 갱신: `--out <envelope-file>` 요약 출력, 진행 한 줄(stderr), codex 백엔드 cwd git 저장소 사전 점검(exit 8),
+  `cwd_policy: task`(cwd=`tasks/<task>/`). AGENTS.md Lifecycle 6의 "native or via MCP" 문구를 native로 정리.
+
 ## [0.6.0] - 2026-09-06
 
 ### Added

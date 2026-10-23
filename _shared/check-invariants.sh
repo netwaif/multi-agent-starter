@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # check-invariants.sh — system-invariants.md 불변식 표의 실행 러너 (exit-code 판정).
-# 사용: bash _shared/check-invariants.sh              # 핵심 INV1~13 판정. 하나라도 FAIL → exit 비0
+# 사용: bash _shared/check-invariants.sh              # 핵심 INV1~15 판정. 하나라도 FAIL → exit 비0
 #       bash _shared/check-invariants.sh --self-test  # 러너 자체 검증: 불변식을 하나씩 깨뜨린
 #                                                     # fixture 사본이 실제로 FAIL하는지 확인
 # 유지보수자 전용 점검(외부 매뉴얼·generator 템플릿·sync drift)은 자산이 있을 때만 돌고
@@ -90,17 +90,24 @@ core_checks() {
   if sed -n '/^## Worker 행동 규약/,/^## Execution/p' "$WBR" | grep -qiE '질문|ask'; then
     ng "INV12c 규약 블록 내 질문 지시 부재"; else ok "INV12c 규약 블록 내 질문 지시 부재"; fi
 
-  # INV13 backends 실행계약 정합 (jq)
+  # INV13 backends 실행계약 정합 (jq) — codex 2역할 = codex exec CLI(디스패처), sandbox·approval·cwd 계약값, 폴백 없음
   if command -v jq >/dev/null 2>&1; then
-    if jq -e '.workers["codex-main"].mcp.args_template.sandbox == "workspace-write"' "$BKD" >/dev/null 2>&1 \
-       && jq -e '[.workers["codex-main"].fallbacks[]?.cli.args_template // [] | select(index("--sandbox")) | .[index("--sandbox")+1]] | all(. == "workspace-write")' "$BKD" >/dev/null 2>&1 \
-       && jq -e '.workers["codex-critic"].mcp.args_template.sandbox == "read-only"' "$BKD" >/dev/null 2>&1 \
-       && jq -e '[.workers["codex-critic"].fallbacks[]?.cli.args_template // [] | select(index("--sandbox")) | .[index("--sandbox")+1]] | all(. == "read-only")' "$BKD" >/dev/null 2>&1 \
+    # codex_ok <role> <sandbox>: call_type cli·command codex·exec·--sandbox 값·approval_policy=never·stdin·cwd_policy task·mcp 레코드/폴백 없음
+    codex_ok() { jq -e --arg r "$1" --arg sb "$2" '.workers[$r] as $w | $w.call_type == "cli" and $w.cli.command == "codex"
+      and ($w.cli.args_template | .[0] == "exec" and (index("--sandbox") as $i | $i != null and .[$i+1] == $sb)
+           and index("approval_policy=never") != null and .[-1] == "-")
+      and $w.brief_mode == "stdin" and $w.cwd_policy == "task" and ($w | has("mcp") | not) and (($w.fallbacks // []) | length == 0)' "$BKD" >/dev/null 2>&1; }
+    if codex_ok codex-main workspace-write && codex_ok codex-critic read-only \
        && jq -e '(.workers.gemini.fallbacks // []) | length == 0' "$BKD" >/dev/null 2>&1; then
       ok "INV13 backends 실행계약 정합"; else ng "INV13 backends 실행계약 정합"; fi
   else
     ng "INV13 backends 실행계약 정합 (jq 없음 — 디스패처 필수 의존이므로 설치 필요)"
   fi
+
+  # INV15 폐기된 codex MCP 경로 부재 (D15): .mcp.json에 codex mcp-server 등록 없음, 지침·routing·task-folder에 mcp__codex__ 호출 없음
+  if grep -q 'mcp__codex__' "$RTG" "$TFD" "$INSTR" \
+     || { [ -f "$ROOT/.mcp.json" ] && grep -q 'mcp-server' "$ROOT/.mcp.json"; }; then
+    ng "INV15 폐기 codex MCP 경로 부재"; else ok "INV15 폐기 codex MCP 경로 부재"; fi
 
   # INV14 집행층 존재·배선 (D14)
   local GATE="$ROOT/_shared/adapters/gate.sh" SCK="$ROOT/_shared/adapters/scope_check.sh" REC="$ROOT/_shared/reentry-check.sh" CW="$ROOT/_shared/adapters/call_worker.sh"
@@ -195,6 +202,10 @@ PYEOF
   WORK="$(mktemp -d)"; make_copy "$WORK"; replace_in "$WORK/CLAUDE.md" '운영 원칙 (Operating Principles)' '운영 지침'; run_case "INV12"
   WORK="$(mktemp -d)"; make_copy "$WORK"; replace_in "$WORK/_templates/worker-brief.md" '가정은 명시하고' '가정은 질문하고'; run_case "INV12c"
   WORK="$(mktemp -d)"; make_copy "$WORK"; replace_in "$WORK/_shared/backends.json" '"workspace-write"' '"read-only"'; run_case "INV13"
+  WORK="$(mktemp -d)"; make_copy "$WORK"; replace_in "$WORK/_shared/backends.json" '"approval_policy=never",' ''; run_case "INV13b"
+  WORK="$(mktemp -d)"; make_copy "$WORK"; replace_in "$WORK/_shared/backends.json" '"cwd_policy": "task"' '"cwd_policy": "repo_root"'; run_case "INV13c"
+  WORK="$(mktemp -d)"; make_copy "$WORK"; echo '- 호출: `mcp__codex__codex`' >> "$WORK/_shared/routing.md"; run_case "INV15a"
+  WORK="$(mktemp -d)"; make_copy "$WORK"; printf '{"mcpServers":{"codex":{"command":"codex","args":["mcp-server"]}}}\n' > "$WORK/.mcp.json"; run_case "INV15b"
   # INV14a: 주석·헤더의 'gate.sh' 문자열은 남기고 실제 호출 줄만 제거 (문자열 존재 검사로는 못 잡는 파손)
   WORK="$(mktemp -d)"; make_copy "$WORK"; replace_in "$WORK/_shared/adapters/call_worker.sh" 'bash "$SCRIPT_DIR/gate.sh" --json "$BRIEF"' 'true'; run_case "INV14a"
   WORK="$(mktemp -d)"; make_copy "$WORK"; rm "$WORK/_shared/adapters/scope_check.sh"; run_case "INV14b"

@@ -69,7 +69,8 @@ assert_eq "fallback scope 위반 → exit 10" 10 "$RC"
 assert_eq "fallback 위반 status" scope_violation "$(jq -r .status <<<"$OUT")"
 assert_eq "fallback 위반 envelope 보존" outside2.txt "$(jq -r '.scope_violations[0]' <<<"$OUT")"
 { echo '#!/usr/bin/env bash'; echo 'echo hacked > outside.txt; echo ok > src/in.c; echo worker-out'; } > "$ROOT/_shared/bin/codex"; fake_bin "$ROOT" agy 0
-# none scope면 cwd=$ROOT (외부 repo에 안 씀)
+# none scope면 cwd=$ROOT (외부 repo에 안 씀). codex는 cwd가 git 저장소여야 하므로 ROOT를 git으로.
+git -C "$ROOT" init -q
 printf 'target_repo: %s\nwrite_scope: none\n' "$EXT" > "$ROOT/tasks/t/workers/w/brief.md"; approve "$ROOT" w
 { echo '#!/usr/bin/env bash'; echo 'pwd'; } > "$ROOT/_shared/bin/codex"
 dispatch "$ROOT" w "$ROOT/tasks/t/workers/w/brief.md"

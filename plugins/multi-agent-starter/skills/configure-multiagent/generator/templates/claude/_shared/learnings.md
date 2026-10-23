@@ -88,3 +88,6 @@
 "pro-high 쓰지 마라"(D4/INV9) 같은 **환경 한계발 금지 규칙**은 그 환경(백엔드)이 바뀌면 근거가 사라진다. pro-high 제외 사유는 옛 antigravity-claude-proxy의 `400 INVALID_ARGUMENT`였는데, 백엔드를 `agy` CLI로 바꾸니 pro-high가 정상 작동(spike 실증). → 금지 규칙엔 **"무엇 때문에 금지인지(원인 계층)"를 함께 적어야**, 원인이 사라졌을 때 안전하게 해제할 수 있다. 또 모델 셀렉션이 도구마다 다름을 확인: agy는 모델이 **전역·계정단위**(`/model`)라 per-call 핀 불가 → worker별 다른 모델 동시 사용은 안 되고, gemini 전용 전역을 pro-high로 고정해 운용. 마이그레이션은 D4·INV9·INV10·routing·validate C6를 **한 묶음으로** 갱신해야 내부 모순(validate가 새 정본을 FAIL)이 안 생긴다.
 **근거**: agy spike S1 GREEN + 3자 검수(codex #8이 "옛 정책과 충돌" 지적 → 검증하니 정책을 갱신해야 하는 것이었음). backends.json이 gemini 호출 정본, mcp__gemini-pro__/mcp__gemini__ 브리지 폐기.
 **worker**: orchestrator(마이그레이션·라이브 편집), codex-critic+gemini=agy(검수)
+
+## [2026-10-23] [codex-exec-default]
+`codex mcp-server`는 codex-cli 0.154.0 무렵 제거됐다(0.163.0에 없음). codex-main·codex-critic은 이제 디스패처 경유 `codex exec`가 기본·유일 경로다(sandbox·approval never·cwd=tasks/<task>/ 계약 동일, `.mcp.json` 없음 — D15). Claude Code에서 부를 땐 Bash 도구 `timeout: 600000` + `call_worker.sh --out <envelope>` — 디스패처 timeout 540s가 Bash 상한보다 짧아 결과가 잘리지 않고, 화면엔 요약만 나온다.
